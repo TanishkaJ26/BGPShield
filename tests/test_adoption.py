@@ -11,6 +11,7 @@ import json
 from datetime import date
 
 import polars as pl
+import pytest
 
 from hijax.analysis.adoption import (
     AdoptionTables,
@@ -169,3 +170,43 @@ def test_update_json_appends_across_runs(tmp_path: object) -> None:
         )
     loaded = json.loads(out.read_text(encoding="utf-8"))
     assert [r["snapshot_date"] for r in loaded["by_day"]] == ["2026-09-01", "2026-09-08"]
+
+
+def test_aspa_coverage_by_position() -> None:
+    """Where a publisher sits on the path decides what it can do, so the shares are split
+    by position rather than reported as one number."""
+    from hijax.analysis.adoption import aspa_coverage_by_position
+
+    routes = pl.DataFrame(
+        {
+            "as_path": [
+                [1, 2, 3],  # publisher at the origin only
+                [4, 5, 6],  # publisher in the middle only
+                [7, 8, 9],  # publisher at the neighbour only
+                [1, 2, 9],  # two publishers, not adjacent
+                [1, 5, 9],  # adjacent pair at 1-5, and 5-9
+                [10, 11, 12],  # no publishers at all
+            ]
+        }
+    )
+    publishers = {1, 5, 9}
+    result = aspa_coverage_by_position(routes, publishers)
+
+    assert result["routes"] == 6
+    counts = result["counts"]
+    assert counts["any"] == 5  # every route except the last
+    assert counts["origin"] == 3  # paths starting 1, 1, 1
+    assert counts["neighbour"] == 3  # paths ending 9, 9, 9
+    assert counts["transit"] == 2  # the 5 in the middle of two paths
+    assert counts["adjacent_pair"] == 1  # only [1, 5, 9] has two side by side
+    assert counts["all_hops"] == 1
+    assert result["shares"]["any"] == pytest.approx(5 / 6)
+
+
+def test_aspa_coverage_with_no_publishers() -> None:
+    from hijax.analysis.adoption import aspa_coverage_by_position
+
+    routes = pl.DataFrame({"as_path": [[1, 2, 3]]})
+    result = aspa_coverage_by_position(routes, set())
+    assert result["counts"]["any"] == 0
+    assert result["shares"]["any"] == 0.0

@@ -169,6 +169,7 @@ source = { editable = "." }
 dependencies = [
     { name = "duckdb" },
     { name = "polars" },
+    { name = "py-radix" },
     { name = "pyarrow" },
     { name = "pybgpkit" },
     { name = "pydantic" },
@@ -193,6 +194,7 @@ dev = [
 requires-dist = [
     { name = "duckdb", specifier = ">=1.0" },
     { name = "polars", specifier = ">=1.0" },
+    { name = "py-radix", specifier = ">=1.1.0" },
     { name = "pyarrow", specifier = ">=16" },
     { name = "pybgpkit", specifier = ">=0.8" },
     { name = "pydantic", specifier = ">=2.7" },
@@ -409,6 +411,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/06/8f/d741afb1dcd1848161189e017d27972e7e78556d8dce66b94d4235093706/polars_runtime_32-1.44.2-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:c4a09fb14aad711526346efc0cb2015c2fd0555ce4118b6524e5debbaea65ff5", size = 49887654, upload-time = "2026-09-09T07:40:37.455Z" },
     { url = "https://files.pythonhosted.org/packages/ba/e7/c61c1c7eea37705920fe7c1302d1dd80d1165db2b928f0da3eae6d1ebb75/polars_runtime_32-1.44.2-cp310-abi3-win_amd64.whl", hash = "sha256:8598e7a20efba70bb74978c7df7af7c606ff4d79b9b48fdd808250b189bc9a13", size = 51297967, upload-time = "2026-09-09T07:40:41.993Z" },
     { url = "https://files.pythonhosted.org/packages/e7/a0/d0dd0d2ec95fa328dd47055905fae53ba3cd79f11c8973326ebe75a49e4c/polars_runtime_32-1.44.2-cp310-abi3-win_arm64.whl", hash = "sha256:d51040d3ab40157f6db3c62be59cab5b80fb3c8d158924769c4982a1c8eef730", size = 44303345, upload-time = "2026-09-09T07:40:47.081Z" },
+]
+
+[[package]]
+name = "py-radix"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/27/b32febece1ce72018b25955b606ee35fe6e8884b633ace7a1fa98b90277c/py_radix-1.1.0.tar.gz", hash = "sha256:4abdb4e4969aaeef40eeb186bada2911462183788a6f445b971d18aa5d1af9be", size = 27948, upload-time = "2025-12-04T19:24:55.653Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/8c/0e36b79ee42be9e0e8ecc2d1dc57953485aba70c58a3d5ffb23eb931c014/py_radix-1.1.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:6c88ca6c4fbc29b082f77323882f2a150c89acaabaa0c414fe40c8be484a3d48", size = 22059, upload-time = "2025-12-04T19:24:09.144Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/3e/613b7bcedc0b33d87e0ff4b9f1ed47b4de8474df4fc1230142d71576fd6a/py_radix-1.1.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:865dbb263d6281c2346ec3fdc5608a0d38f86686560096cb207a33a37cc2e371", size = 22261, upload-time = "2025-12-04T19:24:10.273Z" },
+    { url = "https://files.pythonhosted.org/packages/07/ef/c8c8933789679c089b63fb1fdee68bac3e3f7c5e3c49199c8ce9c74f4566/py_radix-1.1.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:3aa762ed243e1c7bfae39acc43c127dd6b687a5222a1e042b168b862d94c5f8c", size = 58197, upload-time = "2025-12-04T19:24:11.181Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/14/069bbcb36f7b2333f9abeaec94ae749afcb3683396ac1737aafdb54fd8f8/py_radix-1.1.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7058d80bc1c359879431b7840d2060b103c7d09046ac4cdd8c7021e7843463a9", size = 57710, upload-time = "2025-12-04T19:24:12.235Z" },
+    { url = "https://files.pythonhosted.org/packages/22/1b/fa4bc3c87f550ba91dd436f696fdcf894cb10d361c5b6a33d6744cfa8b57/py_radix-1.1.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:ac40a4940bcfb440b3c0bd0789f6954df50868c211436862bfb8d9f93603835f", size = 56738, upload-time = "2025-12-04T19:24:13.221Z" },
+    { url = "https://files.pythonhosted.org/packages/38/4b/1d6c55c0661a991b243cef6f87d2b482d8b4c22cc53603949d40fb04c42f/py_radix-1.1.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:0472b85a15b56a442445f01c38d2f0f379ac32ca7d3da15c484bc9fdcf46a744", size = 56901, upload-time = "2025-12-04T19:24:14.163Z" },
+    { url = "https://files.pythonhosted.org/packages/76/08/5750fda73a66ae8ad2ab9c6845c6130a26c00b2961dfc56fe2b88ecda014/py_radix-1.1.0-cp312-cp312-win32.whl", hash = "sha256:1b5972bb72772ba6f090d42096aaa80b33de8df0e6f9d3514db78b96231c72b3", size = 21471, upload-time = "2025-12-04T19:24:15.804Z" },
+    { url = "https://files.pythonhosted.org/packages/17/73/dea8e973e92351084d313900b6beff38464f7c9420cce45c4d42d477279c/py_radix-1.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:5546b37e6236c19de49f17914526a78aebc8e0c7ce4c7f4931b7088f7d912898", size = 23381, upload-time = "2025-12-04T19:24:16.763Z" },
+    { url = "https://files.pythonhosted.org/packages/65/67/a2e2a02afd493950bb60a234a86c965d8d699a57243aee5b03a2895d9f37/py_radix-1.1.0-cp312-cp312-win_arm64.whl", hash = "sha256:a6a507a095218de334f198ad64f720ce6f120b7289f208f999348b4519e60099", size = 21070, upload-time = "2025-12-04T19:24:17.672Z" },
 ]
 
 [[package]]

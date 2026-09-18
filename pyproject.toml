@@ -16,6 +16,7 @@ dependencies = [
     "pybgpkit>=0.8",
     "requests>=2.32",
     "tzdata>=2026.4",
+    "py-radix>=1.1.0",
 ]
 
 [project.scripts]
@@ -54,7 +55,7 @@ files = ["src"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["bgpkit", "bgpkit.*", "pybgpkit", "duckdb", "pyarrow", "pyarrow.*"]
+module = ["bgpkit", "bgpkit.*", "pybgpkit", "duckdb", "pyarrow", "pyarrow.*", "radix"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -20,9 +20,10 @@ This is a **research measurement project**, not a product. Correctness and repro
 
 - Python 3.12, `uv` for env/lockfile, `ruff` for lint+format, `mypy --strict` on `src/`, `pytest` for tests.
 - Run `uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest` before declaring anything done.
-- **Commit and push directly to `main`** (the owner's instruction, 2026-09-18). Small, logical
-  commits, each with the full check suite passing first. Use a feature branch only when the owner
-  asks for one. This replaces the earlier `phase-N` branch rule.
+- **Never run `git commit` or `git push`** (the owner's instruction, 2026-09-18). Make changes in
+  the working tree, run the full check suite, and leave committing to the owner. Report what
+  changed and let them decide what lands. This replaces the earlier rules about branches and
+  about committing to `main`.
 - Path direction convention: normalized `as_path` is **origin first** (Section 10.1). Say so loudly wherever paths are handled.
 - Pinned spec versions live in `docs/references.md`; design decisions (dated) in `docs/decisions.md`.
 - Set a descriptive `User-Agent` with a contact email on every download; cache downloads under `data/raw/`.

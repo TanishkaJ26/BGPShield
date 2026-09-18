@@ -255,3 +255,127 @@ Two sanity checks, neither of which the code could pass by accident:
 
 Cross-referencing these against the ASPA publishers from Phase 1 is RQ4's central question,
 and is now possible from stored tables alone.
+
+## Phase 3 (2026-09-18): the validators
+
+### Commands
+
+```bash
+uv run hijax validate --date 2026-09-01 --collectors rrc06
+uv run python scripts/phase3_trace_invalid.py --date 2026-09-01 --collector rrc06
+```
+
+Relationships default to the month before the snapshot, because plan Section 10.4 wants a
+graph that was not inferred from the events being studied.
+
+### Conformance: every worked example from the specification passes
+
+The verification draft does not carry its examples inline. Section 6.1 points to a separate
+document maintained by three of its authors: "ASPA-based AS Path Verification Examples",
+Sriram, Borchert and Matejka, August 2025, at
+<https://github.com/ksriram25/IETF/blob/main/ASPA_path_verification_examples.pdf>.
+
+All 23 examples are implemented as tests: 9 upstream, 10 downstream, and 4 on a topology with
+complex relationships. Each test pins the four ramp lengths the document states, not only the
+final verdict, so an answer that came out right through two cancelling mistakes still fails.
+
+### Origin validation sanity check
+
+Plan Section 11 (Phase 3) asks for the Invalid share to be compared with public statistics.
+Snapshot 2026-09-01, collector rrc06, 996,912 VRPs in force:
+
+| Measure | Per route | Per distinct prefix |
+| --- | --- | --- |
+| Valid | 71.28% | 71.09% |
+| Invalid | 0.05% | 0.16% |
+| NotFound | 28.67% | 28.75% |
+| RPKI coverage, Valid plus Invalid | 71.33% | 71.25% |
+
+Public reference: the Hurricane Electric report at <https://bgp.he.net/report/rpki_and_aspa>,
+updated 17 Sep 2026, states "Global Prefix RPKI Coverage: 68.48%", from 1,112,451 covered of
+1,624,413 routed prefixes.
+
+Ours is 71.25% against their 68.48%. Two differences explain the direction without excusing
+it. This is one collector in Tokyo with 21 peers, seeing 1,355,629 prefixes against their
+1,624,413, and the prefixes a smaller vantage point misses are disproportionately the
+long-tail ones least likely to be signed. The dates also differ by sixteen days. Close enough
+to say the validator is not systematically wrong, not close enough to claim more.
+
+Invalid at 0.05% of routes sits at the low end of what public monitors usually report. Worth
+rechecking against a second collector in Phase 4 before anything is drawn from it.
+
+### ASPA verification on real routes
+
+Same snapshot and collector, with 2,822 ASPA records in force:
+
+| Outcome | Share of routes |
+| --- | --- |
+| Unknown | 82.70% |
+| Valid | 17.04% |
+| Invalid | 0.26% |
+
+The Unknown share is the story of ASPA today, and path coverage explains it exactly:
+
+| Where an ASPA publisher sits on the path | Share of routes |
+| --- | --- |
+| Anywhere on the path | 37.01% |
+| At the origin | 3.02% |
+| Somewhere in transit | 21.60% |
+| At the collector's peer | 19.49% |
+| Two publishers adjacent to each other | 1.40% |
+| Every hop covered | 18 routes, under 0.001% |
+
+A hop can only be positively confirmed when the network below it has published. Only 1.40% of
+routes contain two adjacent publishers, and 18 routes out of 6.75 million have every hop
+covered. ASPA can currently contradict a path far more often than it can confirm one, so
+Unknown is the honest answer for four routes in five.
+
+Procedure selection: 69.6% of routes were checked with the downstream procedure and 29.9%
+with the upstream one. For 0.5% there was no inferred relationship between the collector's
+peer and the network before it, so both procedures ran and the stricter answer was kept.
+
+### Tracing three Invalid routes by hand
+
+The acceptance criterion asks that a reviewer be able to trace three randomly sampled
+ASPA-Invalid routes. `scripts/phase3_trace_invalid.py` prints, for each sample, the stored
+path, what every network on it published, the authorization outcome at each hop, the four
+ramp lengths, the procedure chosen and why, and the arithmetic behind the verdict. The sample
+is seeded, so the same three routes return on every run.
+
+The three samples were then checked against the CAIDA relationship graph, which knows nothing
+about ASPA, using the valley-free rule (Gao-Rexford, plan Section 3):
+
+| Sample | Path | Relationship steps | Independent verdict |
+| --- | --- | --- | --- |
+| 1 | AS7195 AS174 AS2497 AS25152 | up, down, across | valley, a genuine leak signature |
+| 2 | AS174 AS18041 AS59105 | down, across | valley, a genuine leak signature |
+| 3 | AS29256 AS29386 AS6866 AS3257 AS2497 | up, up, up, across | valley-free |
+
+Two of the three are corroborated by an independent method. **The third is a likely false
+positive, and the trace shows why**: AS29386 published its providers as AS3491, AS6453,
+AS6762 and AS8452, while CAIDA infers AS6866 is also its provider. The path is legitimate and
+the published record is incomplete. That is exactly the effect RQ2 exists to measure, and
+Phase 4 will quantify how much of the 0.26% it accounts for.
+
+### Where the contradictions concentrate
+
+Of 17,865 Invalid routes, 1,030 are Invalid because the path carries an AS_SET, which the
+draft rejects outright (Section 5.5 step 3). The rest trace to 240 distinct contradicted
+hops, and the largest all place some network above a tier-1 that published an AS0 ASPA:
+
+| Contradicted hop | Routes |
+| --- | --- |
+| AS174, with AS2497 claimed above it | 5,712 |
+| AS1299, with AS2497 claimed above it | 2,676 |
+| AS174, with AS18041 claimed above it | 2,076 |
+| AS3257, with AS2497 claimed above it | 1,576 |
+
+AS174, AS1299, AS3257 and AS7018 each published an AS0 ASPA, which is correct for a network
+that buys transit from nobody, and which makes any path placing someone above them a
+contradiction.
+
+### Performance
+
+6,751,923 routes validated in 95.8 seconds on the laptop. Both validators are memoised on
+their inputs, which matters because collector tables repeat heavily: those routes reduce to
+1,362,911 distinct prefix-and-origin pairs and 787,130 distinct paths.

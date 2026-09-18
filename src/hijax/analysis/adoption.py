@@ -215,3 +215,52 @@ def update_json(tables: AdoptionTables, destination: Path, *, top_countries: int
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(payload, indent=1, sort_keys=False) + "\n", encoding="utf-8")
     return destination
+
+
+# ---------------------------------------------------------------------------------------
+# RQ1, second half: how much of the routing table an ASPA record touches at all
+# ---------------------------------------------------------------------------------------
+
+
+def aspa_coverage_by_position(routes: pl.DataFrame, publishers: set[int]) -> dict[str, Any]:
+    """Share of routes whose path contains at least one ASPA publisher, and where.
+
+    Plan Section 11 (Phase 3) asks for this "by position", because where a publisher sits on
+    the path decides what it can do. Only a network that checks a route can act on it, and
+    only hops between two publishers can be positively confirmed, so the counts are split:
+
+    * **origin** is the network that announced the prefix, ``as_path[0]``.
+    * **neighbour** is the last network on the path, which is the collector's peer.
+    * **transit** is anything in between.
+    * **adjacent_pair** counts routes with two publishers next to each other, which is the
+      only arrangement that can produce a positively confirmed hop rather than a shrug.
+
+    ``publishers`` is the set of AS numbers with an ASPA record on that date.
+    """
+    total = routes.height
+    counts = dict.fromkeys(
+        ("any", "origin", "neighbour", "transit", "adjacent_pair", "all_hops"), 0
+    )
+    for (path,) in routes.select("as_path").iter_rows():
+        if not path:
+            continue
+        hit = [asn in publishers for asn in path]
+        if not any(hit):
+            continue
+        counts["any"] += 1
+        if hit[0]:
+            counts["origin"] += 1
+        if hit[-1]:
+            counts["neighbour"] += 1
+        if any(hit[1:-1]):
+            counts["transit"] += 1
+        if any(a and b for a, b in zip(hit, hit[1:], strict=False)):
+            counts["adjacent_pair"] += 1
+        if all(hit):
+            counts["all_hops"] += 1
+
+    return {
+        "routes": total,
+        "counts": counts,
+        "shares": {k: (v / total if total else 0.0) for k, v in counts.items()},
+    }

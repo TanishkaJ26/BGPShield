@@ -2,6 +2,45 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-18 - Phase 3
+
+### D-022: The draft's worked examples are the conformance suite
+The verification draft does not contain its examples inline; Section 6.1 points to a separate
+PDF maintained by three of its authors. All 23 are now tests, each pinning the four ramp
+lengths as well as the verdict. That document numbers the draft's sections 6.1 to 6.3 while
+draft-28 has them at 5.4 to 5.6, because the numbering shifted between versions. The
+algorithms are the same.
+
+### D-023: Two steps the plan's pseudocode omitted
+Implementing from the draft rather than from the plan's summary added two checks that plan
+Section 10.3 leaves out, both of which change results:
+
+1. **The neighbour check.** Both procedures return Invalid when the most recently added AS
+   does not match the neighbour that sent the route (Sections 5.5 and 5.6, step 2).
+2. **The route-server exemption.** The upstream procedure skips that check for an RS-client,
+   because a transparent route server does not insert itself into the path (RFC 7947). This is
+   the case Phase 2 found at the Jakarta exchange collector, where two peers accounted for
+   every apparent neighbour mismatch.
+
+### D-024: An unknown relationship runs both procedures and keeps the stricter answer
+Plan Section 10.3 says to run both when CAIDA infers nothing about the pair, and to report
+those routes separately. The combined state is the more severe of the two, so an ambiguous
+route is never presented as clean, and a procedure recorded as "both" marks it for separate
+reporting. On rrc06 this was 0.5% of routes.
+
+### D-025: Validation results are memoised, not recomputed per route
+A collector table repeats the same prefix, origin and path combinations many times: 6.75
+million routes at rrc06 reduce to 1.36 million distinct prefix-and-origin pairs and 787
+thousand distinct paths. Both validators are pure functions of those keys, so each distinct
+key is evaluated once. That is what makes a full day validate in 96 seconds instead of about
+an hour.
+
+### D-026: The hand-trace is a script, not a notebook
+Plan Section 11 says a reviewer should be able to trace three sampled Invalid routes "in a
+notebook". `scripts/phase3_trace_invalid.py` does it as a seeded script instead: the same
+reasoning, printed, rerunnable identically, and covered by the linters and the type checker
+like the rest of the code. `notebooks/` stays for exploration, as plan Section 7 intends.
+
 ## 2026-09-18 — Phase 2
 
 ### D-017: Confederation segments cannot be told apart, so they are not dropped

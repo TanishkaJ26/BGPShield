@@ -19,9 +19,17 @@ from hijax.analysis.adoption import build as build_adoption
 from hijax.analysis.adoption import update_json as update_adoption_json
 from hijax.config import DEFAULT_CONFIG_PATH, load_config
 from hijax.ingest.bgp import ingest_many
-from hijax.ingest.meta import ingest_month, load_asn_registry, write_asn_registry
+from hijax.ingest.meta import (
+    RelationshipLookup,
+    ingest_month,
+    load_asn_registry,
+    write_asn_registry,
+)
 from hijax.ingest.rpki import date_range, ingest_date
 from hijax.paths import PathFlag
+from hijax.validate.aspa import AspaState
+from hijax.validate.rov import RovState
+from hijax.validate.run import load_aspa_registry, load_vrp_index, validate_collector
 
 app = typer.Typer(help="Hijax: BGP route-security measurement pipeline.", no_args_is_help=True)
 
@@ -285,3 +293,89 @@ def ingest_meta(
     note = " (skipped)" if result.skipped_asrank else ""
     typer.echo(f"  ranked ASes   : {result.ranked:>9,}{note}")
     typer.echo(f"  as_meta rows  : {result.as_meta_rows:>9,}")
+
+
+@app.command("validate")
+def validate(
+    day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
+    collectors: Annotated[
+        str | None,
+        typer.Option("--collectors", help="Comma-separated. Defaults to the configured set."),
+    ] = None,
+    month: Annotated[
+        str | None,
+        typer.Option("--month", help="Relationship month. Defaults to the month before."),
+    ] = None,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+) -> None:
+    """Run origin and ASPA validation over the stored routes for a date.
+
+    Plain English: for every route a collector recorded, this asks two questions. Is the
+    network announcing these addresses allowed to? And does the path it travelled make sense
+    given what networks have published about their providers?
+
+    Relationships default to the month *before* the snapshot, because plan Section 10.4 wants
+    a relationship graph that was not inferred from the events being studied.
+    """
+    cfg = load_config(config_path)
+    target = _parse_day(day, "--date")
+    chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
+    rel_month = month or _previous_month(target)
+
+    rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
+    if not rel_path.exists():
+        typer.echo(f"no relationships for {rel_month}; run 'hijax ingest-meta --month {rel_month}'")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"loading VRPs and ASPAs for {target}, relationships for {rel_month}")
+    vrps = load_vrp_index(cfg, target)
+    registry = load_aspa_registry(cfg, target)
+    relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
+    typer.echo(f"  {len(vrps):,} VRPs, {len(registry):,} ASPA records")
+
+    failures = 0
+    for collector in chosen:
+        try:
+            summary = validate_collector(cfg, collector, target, vrps, registry, relationships)
+        except FileNotFoundError as exc:
+            failures += 1
+            typer.echo(f"{collector:<20} SKIPPED: {exc}")
+            continue
+        typer.echo(
+            f"{collector:<20} routes={summary.routes:>10,}  "
+            f"distinct origins={summary.distinct_origins:>9,}  "
+            f"distinct paths={summary.distinct_paths:>8,}  {summary.seconds:>6.1f}s"
+        )
+        typer.echo(
+            "    ROV  "
+            + "  ".join(
+                f"{state}={summary.rov_share(state):.2%}"
+                for state in (RovState.VALID, RovState.INVALID, RovState.NOT_FOUND)
+            )
+            + (
+                "  reasons: " + ", ".join(f"{k}={v:,}" for k, v in summary.rov_reasons.items())
+                if summary.rov_reasons
+                else ""
+            )
+        )
+        typer.echo(
+            "    ASPA "
+            + "  ".join(
+                f"{state}={summary.aspa_share(state):.2%}"
+                for state in (AspaState.VALID, AspaState.INVALID, AspaState.UNKNOWN)
+            )
+            + "  procedure: "
+            + ", ".join(f"{k}={v / summary.routes:.1%}" for k, v in summary.aspa_procedures.items())
+        )
+
+    if failures:
+        raise typer.Exit(code=1)
+
+
+def _previous_month(day: date) -> str:
+    year, month = day.year, day.month - 1
+    if month == 0:
+        year, month = year - 1, 12
+    return f"{year:04d}-{month:02d}"
