@@ -388,6 +388,117 @@ class SiblingLookup:
         return left is not None and left == right
 
 
+def parse_as2org_text(lines: Iterable[str]) -> pl.DataFrame:
+    """Parse the pipe-delimited form of CAIDA's AS-to-organisation dataset.
+
+    The JSON Lines form only exists for some releases, so older months have to be read from
+    the original text format. Two record types share the file, separated by ``# format:``
+    header lines, exactly as the dataset README describes and as verified in Phase 0:
+
+        # format:org_id|changed|org_name|country|source
+        # format:aut|changed|aut_name|org_id|opaque_id|source
+
+    Which section is being read is decided by the most recent header, because the org and AS
+    records are otherwise indistinguishable by field count alone.
+    """
+    orgs: dict[str, tuple[str, str]] = {}
+    members: list[tuple[int, str]] = []
+    reading_asns = False
+
+    for raw in lines:
+        line = raw.rstrip("\n")
+        if line.startswith("#"):
+            compact = line.replace(" ", "").lower()
+            if compact.startswith("#format:aut|"):
+                reading_asns = True
+            elif compact.startswith("#format:org_id|"):
+                reading_asns = False
+            continue
+        if not line.strip():
+            continue
+        parts = line.split("|")
+        if reading_asns:
+            if len(parts) < 4:
+                continue
+            try:
+                members.append((int(parts[0]), parts[3]))
+            except ValueError:
+                continue
+        else:
+            if len(parts) < 4:
+                continue
+            orgs[parts[0]] = (parts[2], parts[3])
+
+    return pl.DataFrame(
+        {
+            "asn": [asn for asn, _ in members],
+            "org_id": [org for _, org in members],
+            "org_name": [orgs.get(org, ("", ""))[0] for _, org in members],
+            "org_country": [orgs.get(org, ("", ""))[1] for _, org in members],
+        },
+        schema=AS_ORG_SCHEMA,
+    )
+
+
+def parse_as2org(path: Path) -> pl.DataFrame:
+    """Parse either form of the AS-to-organisation dataset, chosen by file name."""
+    if ".jsonl" in path.name:
+        return parse_as2org_jsonl(open_text(path))
+    return parse_as2org_text(open_text(path))
+
+
+def _months_back(month: str, count: int) -> list[str]:
+    """``month`` and the ``count`` months before it, newest first."""
+    year, mon = (int(part) for part in month.split("-"))
+    out = []
+    for _ in range(count + 1):
+        out.append(f"{year:04d}-{mon:02d}")
+        mon -= 1
+        if mon == 0:
+            year, mon = year - 1, 12
+    return out
+
+
+def fetch_as2org(
+    cfg: Config, month: str, *, session: requests.Session | None = None, force: bool = False
+) -> tuple[Path, str]:
+    """Fetch the newest AS-to-organisation file dated on or before ``month``.
+
+    Two things make this more than a single download. The dataset was quarterly until 2024
+    and only became monthly afterwards, so the exact month often does not exist; plan
+    Section 5 says to use the latest file dated on or before the target. And the JSON Lines
+    form was only published for some releases, so the original pipe-delimited text has to be
+    accepted as a fallback.
+
+    Returns the cached path and the month actually used, so a caller can report the
+    substitution rather than silently pretending it got what it asked for.
+    """
+    owned = session is None
+    sess = session or net.build_session(cfg.project.user_agent)
+    try:
+        for candidate in _months_back(month, 12):
+            stamp = month_first_day(candidate)
+            for pattern in (
+                cfg.meta.caida_as2org_pattern,
+                cfg.meta.caida_as2org_pattern.replace(".jsonl.", ".txt."),
+            ):
+                name = pattern.format(yyyymmdd=stamp)
+                found = net.download(
+                    sess,
+                    f"{cfg.meta.caida_as2org_base}/{name}",
+                    cfg.paths.raw / "caida" / name,
+                    force=force,
+                )
+                if found is not None:
+                    return found, candidate
+    finally:
+        if owned:
+            sess.close()
+    raise DelegatedFormatError(
+        f"no CAIDA as2org file found for {month} or the twelve months before it"
+    )
+
+
 # --------------------------------------------------------------------------------------
 # CAIDA AS Rank: customer cone and rank (plan Section 8, row 6)
 # --------------------------------------------------------------------------------------
@@ -551,6 +662,9 @@ class MetaResult:
     ranked: int = 0
     as_meta_rows: int = 0
     skipped_asrank: bool = False
+    as2org_month: str = ""
+    """The month the organisation data actually came from, which may be earlier than asked
+    for because the dataset was quarterly before 2024."""
 
 
 def ingest_month(
@@ -569,24 +683,24 @@ def ingest_month(
     are not inferred from the very event being studied.
     """
     result = MetaResult(month=month)
-    rel_url, rel_path, org_url, org_path = caida_paths(cfg, month)
+    rel_url, rel_path, _org_url, _org_path = caida_paths(cfg, month)
 
     session = net.build_session(cfg.project.user_agent)
     try:
         if net.download(session, rel_url, rel_path, force=force) is None:
             raise DelegatedFormatError(f"CAIDA published no as-rel file for {month}")
-        if net.download(session, org_url, org_path, force=force) is None:
-            raise DelegatedFormatError(f"CAIDA published no as2org file for {month}")
+        org_path, org_month = fetch_as2org(cfg, month, session=session, force=force)
     finally:
         session.close()
 
+    result.as2org_month = org_month
     relations = parse_as_rel(open_text(rel_path))
     rel_out = table_path(cfg, "as_rel", month)
     rel_out.parent.mkdir(parents=True, exist_ok=True)
     as_rel_frame(relations, month).write_parquet(rel_out)
     result.relationships = len(relations)
 
-    orgs = parse_as2org_jsonl(open_text(org_path))
+    orgs = parse_as2org(org_path)
     result.organisations = orgs.height
 
     ranks_path = table_path(cfg, "as_rank", month)

@@ -30,6 +30,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from hijax.config import Config
+from hijax.net import build_session, download
 from hijax.paths import PathFlag, normalize
 
 #: Arrow schema for the ``routes`` table, following plan Section 9.
@@ -72,6 +73,13 @@ class CollectorResult:
     skipped: bool = False
     error: str | None = None
     """Set when this collector failed. One collector failing must not lose the others."""
+    dump_bytes: int = 0
+    """Size of the verified MRT dump this row count came from, so a suspiciously small
+    result can be traced back to its input."""
+    files_read: int = 0
+    missing_files: list[str] = field(default_factory=list)
+    """Update files that could not be fetched. Reported so a window with holes in it is
+    never mistaken for a complete one."""
 
     def flag_rate(self, flag: PathFlag) -> float:
         """Share of rows carrying one flag, as a fraction of all rows."""
@@ -171,6 +179,42 @@ def read_stats(cfg: Config, collector: str, day: date) -> dict[str, Any] | None:
     return loaded if isinstance(loaded, dict) else None
 
 
+def mrt_cache_path(cfg: Config, collector: str, url: str) -> Path:
+    """Where one collector's dump is cached on disk."""
+    return cfg.paths.raw / "mrt" / collector / url.rsplit("/", 1)[-1]
+
+
+def fetch_dump(cfg: Config, collector: str, url: str, *, force: bool = False) -> Path:
+    """Fetch one MRT dump to disk, verifying it arrived whole, then return the path.
+
+    **Why this is not streamed straight into the parser.** Handing a URL to the MRT parser
+    reads the dump over HTTP inside the parser, and a connection that drops half way through
+    simply ends the iteration. Python sees an ordinary end of loop, so a partial dump is
+    indistinguishable from a complete one and gets written out as a finished table with a
+    stats file beside it. That is exactly what happened on 2026-09-18: ingesting six
+    collectors at once produced 733,116 rows for rrc06 where a serial run produced 6,751,923,
+    and reported success both times (docs/decisions.md D-050).
+
+    Downloading first removes the ambiguity, because ``hijax.net.download`` compares what
+    arrived against ``Content-Length``, retries a short read and raises rather than returning
+    a truncated file. The dump is then parsed from local disk, where the byte count is
+    already known to be right.
+    """
+    # A local file (the committed test sample, or an already-cached dump) is used as it is.
+    if not url.startswith(("http://", "https://")):
+        local = Path(url)
+        if local.exists():
+            return local
+        raise RibNotFoundError(f"no such local dump: {url}")
+
+    dest = mrt_cache_path(cfg, collector, url)
+    session = build_session(cfg.project.user_agent)
+    got = download(session, url, dest, force=force)
+    if got is None:
+        raise RibNotFoundError(f"archive has no dump at {url}")
+    return got
+
+
 def _batch_to_table(rows: dict[str, list[Any]]) -> pa.Table:
     return pa.table(rows, schema=ROUTES_SCHEMA)
 
@@ -233,7 +277,10 @@ def ingest_rib(
         seen_prefix = prefixes.add
         rows = 0
 
-        for elem in bgpkit.Parser(url=result.url):
+        # Parse from the verified local copy, never from the URL: see fetch_dump.
+        dump = fetch_dump(cfg, collector, result.url, force=force)
+        result.dump_bytes = dump.stat().st_size
+        for elem in bgpkit.Parser(url=str(dump)):
             if limit is not None and rows >= limit:
                 break
             raw = elem.as_path
@@ -344,3 +391,150 @@ def _ingest_guarded(
         return ingest_rib(cfg, collector, day, force=force, limit=limit)
     except Exception as exc:  # noqa: BLE001 - recorded and reported, never swallowed
         return CollectorResult(collector=collector, snapshot_date=day, error=str(exc))
+
+
+def find_update_urls(cfg: Config, collector: str, start: datetime, end: datetime) -> list[str]:
+    """Every update file a collector published in a time window.
+
+    Update files hold the BGP messages received in a short span, five minutes at RIPE RIS
+    and fifteen at RouteViews (verified in Phase 0). An incident needs these rather than a
+    daily table dump, because a leak that lasted twenty-five minutes leaves no trace in a
+    snapshot taken hours later (plan Section 8).
+    """
+    broker = bgpkit.Broker()
+    last: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            items = broker.query(
+                ts_start=start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                ts_end=end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                collector_id=collector,
+                data_type="updates",
+            )
+            return [str(item.url) for item in items]
+        except Exception as exc:  # noqa: BLE001 - transient, worth retrying
+            last = exc
+            time.sleep(2.0 * attempt)
+    raise RibNotFoundError(f"broker lookup failed for {collector} updates: {last}")
+
+
+def _open_with_retry(
+    url: str,
+    attempts: int = 3,
+    pause: float = 2.0,
+    *,
+    cfg: Config | None = None,
+    collector: str = "updates",
+) -> list[Any] | None:
+    """Read one MRT update file, retrying transient failures. ``None`` means give up on it.
+
+    The whole file is materialised rather than streamed, because a failure part way through
+    iteration would otherwise leave half a file's elements already written.
+
+    The file is fetched to disk and verified against ``Content-Length`` before parsing, for
+    the same reason routing-table dumps are (D-050). Retrying on an exception is not enough
+    on its own: a connection that drops mid-stream ends the parser's iteration cleanly, so a
+    truncated file comes back as a short list of elements and raises nothing at all. That
+    matters here because these files feed the incident recall in Phase 5, where a quietly
+    half-read window would look exactly like an incident the detector failed to see.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            if cfg is not None and url.startswith(("http://", "https://")):
+                local = fetch_dump(cfg, collector, url)
+                return list(bgpkit.Parser(url=str(local)))
+            return list(bgpkit.Parser(url=url))
+        except Exception:  # noqa: BLE001 - any transport or parse failure is worth retrying
+            if attempt == attempts:
+                return None
+            time.sleep(pause * attempt)
+    return None
+
+
+def ingest_updates(
+    cfg: Config,
+    collector: str,
+    start: datetime,
+    end: datetime,
+    destination: Path,
+    *,
+    force: bool = False,
+) -> CollectorResult:
+    """Stream every update file in a window into one Parquet file.
+
+    Only announcements are kept. A withdrawal carries no AS_PATH, so there is nothing for
+    either validator or the leak detector to examine.
+    """
+    result = CollectorResult(collector=collector, snapshot_date=start.date())
+    if destination.exists() and not force:
+        result.skipped = True
+        result.path = destination
+        result.rows = pq.ParquetFile(destination).metadata.num_rows
+        return result
+
+    urls = find_update_urls(cfg, collector, start, end)
+    result.files_read = len(urls)
+    if not urls:
+        raise RibNotFoundError(f"{collector} published no update files between {start} and {end}")
+    result.url = f"{len(urls)} update files"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    partial = destination.with_name(f"{destination.name}.part{os.getpid()}")
+
+    peers: set[str] = set()
+    prefixes: set[str] = set()
+    batch = _empty_batch()
+    writer: pq.ParquetWriter | None = None
+    day = start.date()
+    try:
+        writer = pq.ParquetWriter(partial, ROUTES_SCHEMA, compression="zstd")
+        for url in urls:
+            # One unreachable file must not discard a whole incident window. Retry, then
+            # skip it and count it, so the caller can report how much of the window is
+            # actually covered instead of silently analysing a hole.
+            elements = _open_with_retry(url, cfg=cfg, collector=collector)
+            if elements is None:
+                result.missing_files.append(url)
+                continue
+            for elem in elements:
+                if str(elem.elem_type) != "A":
+                    continue
+                raw = elem.as_path
+                peer_asn = elem.peer_asn
+                norm = normalize(raw, peer_asn=peer_asn)
+                for flag in norm.flags:
+                    result.flags[flag] += 1
+                prefix = elem.prefix
+                batch["collector"].append(collector)
+                batch["peer_ip"].append(elem.peer_ip)
+                batch["peer_asn"].append(peer_asn)
+                batch["prefix"].append(prefix)
+                batch["afi"].append(6 if ":" in prefix else 4)
+                batch["as_path_raw"].append(raw)
+                batch["as_path"].append(norm.as_path)
+                batch["has_as_set"].append(norm.has_as_set)
+                batch["origin_asn"].append(norm.origin_asn)
+                batch["timestamp"].append(int(elem.timestamp * 1_000_000))
+                batch["snapshot_date"].append(day)
+                peers.add(elem.peer_ip)
+                prefixes.add(prefix)
+                result.rows += 1
+                if len(batch["prefix"]) >= DEFAULT_BATCH_ROWS:
+                    writer.write_table(_batch_to_table(batch))
+                    batch = _empty_batch()
+        if batch["prefix"]:
+            writer.write_table(_batch_to_table(batch))
+    except BaseException:
+        if writer is not None:
+            writer.close()
+            writer = None
+        partial.unlink(missing_ok=True)
+        raise
+    finally:
+        if writer is not None:
+            writer.close()
+
+    partial.replace(destination)
+    result.peers = len(peers)
+    result.prefixes = len(prefixes)
+    result.path = destination
+    return result

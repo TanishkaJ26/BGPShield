@@ -22,11 +22,11 @@ from pathlib import Path
 import polars as pl
 
 from hijax.config import Config
+from hijax.topology import RelSource
 from hijax.validate.aspa import (
     AspaRegistry,
     AspaState,
     CollectorVerification,
-    RelSource,
     verify_at_collector,
 )
 from hijax.validate.rov import RovResult, RovState, VrpIndex

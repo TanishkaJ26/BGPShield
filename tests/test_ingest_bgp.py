@@ -14,7 +14,13 @@ import pyarrow.parquet as pq
 import pytest
 
 from hijax.config import Config, load_config
-from hijax.ingest.bgp import ROUTES_SCHEMA, ingest_rib, table_path
+from hijax.ingest.bgp import (
+    ROUTES_SCHEMA,
+    RibNotFoundError,
+    ingest_rib,
+    table_path,
+)
+from hijax.net import DownloadError
 
 SAMPLE = Path("data/raw/samples/mrt/rib.iix.cgk.20260901.0000.bz2")
 DAY = date(2026, 9, 1)
@@ -98,3 +104,51 @@ def test_an_interrupted_run_leaves_no_file_behind(
     out = table_path(cfg, "test", DAY)
     assert not out.exists()
     assert list(out.parent.glob("*.part*")) == []
+
+
+# --- Truncated dumps must never become tables (docs/decisions.md D-050) -------------------
+
+
+def test_a_short_download_raises_instead_of_writing_a_small_table(
+    cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bug this guards against, found on 2026-09-18.
+
+    Handing a URL to the MRT parser let a dropped connection end the iteration quietly, so a
+    partial dump was written out as a finished table with a stats file beside it. Ingesting
+    six collectors at once produced 733,116 rows for rrc06 where a serial run produced
+    6,751,923, and both reported success. Ingestion now downloads first through
+    ``hijax.net.download``, which checks the byte count and raises on a short read, so the
+    failure has to surface instead of becoming quiet bad data.
+    """
+
+    def short_read(*args: object, **kwargs: object) -> Path:
+        raise DownloadError("short read: 1000 of 42900000 bytes")
+
+    monkeypatch.setattr("hijax.ingest.bgp.download", short_read)
+
+    with pytest.raises(DownloadError):
+        ingest_rib(cfg, "test", DAY, url="https://example.invalid/rib.bz2")
+
+    # Nothing may be left behind that a later run could mistake for a cached result.
+    assert not table_path(cfg, "test", DAY).exists()
+
+
+def test_a_missing_dump_is_reported_not_silently_empty(
+    cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 404 means the archive published nothing for that day, which is not zero routes."""
+    monkeypatch.setattr("hijax.ingest.bgp.download", lambda *a, **k: None)
+
+    with pytest.raises(RibNotFoundError):
+        ingest_rib(cfg, "test", DAY, url="https://example.invalid/rib.bz2")
+    assert not table_path(cfg, "test", DAY).exists()
+
+
+@needs_sample
+def test_a_local_dump_is_used_as_it_is(cfg: Config) -> None:
+    """A dump already on disk needs no download, which is what keeps the test suite and the
+    cached archive copies working."""
+    result = ingest_rib(cfg, "test", DAY, url=str(SAMPLE), limit=100)
+    assert result.rows == 100
+    assert result.dump_bytes == 0 or result.dump_bytes == SAMPLE.stat().st_size

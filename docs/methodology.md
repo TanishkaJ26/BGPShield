@@ -506,3 +506,479 @@ before they go in a paper.
 The manual review also produced a finding that was not anticipated: the large majority of
 Invalid routes are contradicted by *correct* records at tier-1 networks, not by bad ones.
 Reporting the Invalid share on its own would badly misattribute the cause.
+
+## Phase 5 (2026-09-18): leak detection and the counterfactual, RQ3
+
+### Commands
+
+```bash
+uv run hijax detect --date 2026-09-01 --collectors rrc06
+uv run hijax counterfactual --date 2026-09-01 --limit 3000
+uv run python scripts/phase5_precision_sample.py --date 2026-09-01 --samples 50
+```
+
+### What the detector found
+
+Collector rrc06, snapshot 2026-09-01, relationships from 2026-08:
+
+| | Count |
+| --- | --- |
+| Routes examined | 6,751,923 |
+| Leak sightings | 439,571 |
+| Distinct candidates | 305,856 |
+| Corroborated by two or more vantage points | 62,508 (20.4%) |
+
+By RFC 7908 type:
+
+| Type | Candidates |
+| --- | --- |
+| Type 3, provider to peer | 171,679 |
+| Type 2, lateral peer to peer | 109,021 |
+| Type 4, peer to provider | 13,824 |
+| Type 1, hairpin through two providers | 11,332 |
+
+**305,856 candidates from 6.75 million routes, 4.5% of the table, is not credible as a count
+of real route leaks.** Published measurement work puts genuine leaks orders of magnitude
+lower. Something in the detector or its inputs is producing false positives at scale, which
+is exactly what the precision sample is for.
+
+### Precision on a random sample of 50
+
+Plan Section 11 requires precision to be measured on a manually labelled random sample of 50
+detected leaks. The sample was drawn from the 62,508 corroborated candidates with a fixed
+seed, and `scripts/phase5_precision_sample.py` printed the full evidence for each: the path,
+the relationship at every step, the leaker's size and country, and how many vantage points
+saw it.
+
+One pattern dominates the sample:
+
+| Leaker | Count in sample | All of type |
+| --- | --- | --- |
+| Large transit network, customer cone 1,000 or more | 27 (54%) | lateral, peer to peer |
+| Small or mid-size network, cone under 1,000 | 23 (46%) | all four types |
+
+**26 of the 50 name AS6939, Hurricane Electric, as the leaker, always as a peer-to-peer
+leak.** Hurricane Electric is both an unusually open peer and a major transit provider. When
+the relationship inference labels one of its transit customers as a peer instead, every
+ordinary transit route through it reads as a route taken from one peer and handed to another,
+which is the textbook signature of a Type 2 leak. One misclassified link produces tens of
+thousands of false candidates.
+
+A network of that size leaking systematically across thousands of prefixes, in plain view of
+six vantage points, while continuing to operate normally, is far less likely than the
+inference being wrong about one link. The same reasoning applies to the other two large-cone
+leakers in the sample.
+
+**Estimated precision: 46%, that is 23 of 50.** With a sample of 50 the 95% confidence
+interval is roughly 32% to 60%. This is a triage based on stated evidence rather than
+confirmation by the operators involved, and it should be read that way.
+
+The label criterion is written down so it can be disagreed with: a candidate is counted as
+plausible when the leaker has a customer cone below 1,000, and as a likely inference artifact
+when it is at or above that. Every one of the 27 artifacts is a lateral leak, and every one of
+the 23 plausible candidates has a leaker small enough for a leak to be an ordinary
+misconfiguration.
+
+**Mitigation for Phase 6:** excluding lateral candidates whose leaker has a very large cone
+removes the dominant error mode. That is a hypothesis to test, not a change made here, and it
+trades recall for precision in a way that has to be measured rather than assumed.
+
+### The counterfactual: would ASPA have stopped these leaks?
+
+Evaluated on 3,000 corroborated candidates, every publication scenario against every filtering
+scenario.
+
+| Publication | Records | F-all | F-top100 | F-top20 |
+| --- | --- | --- | --- | --- |
+| S0, today's real records | 2,822 real | 0.4% | 0.4% | 0.3% |
+| S1, plus the top 100 | +86 synthetic | 1.8% | 1.7% | 1.5% |
+| S2, plus the top 1000 | +927 synthetic | 44.5% | 44.4% | 43.8% |
+| S3, everybody publishes | +121,910 synthetic | 97.9% | 96.4% | 93.7% |
+
+**S3 is an upper bound, not a prediction.** Its synthetic records are copied from the same
+inferred topology that was used to detect the leaks, so it substantially asks whether a rule
+derived from CAIDA's topology catches violations of CAIDA's topology. Plan Section 10.6
+requires this warning to travel with the number, and the results table carries a flag on every
+S3 row so it cannot be dropped when the table is copied.
+
+Three things are worth drawing out.
+
+**Today's deployment stops almost nothing.** With only the records operators have really
+published, 0.4% of these leaks would have been caught. That is the honest state of ASPA in
+September 2026, and it follows directly from the Phase 3 finding that only 1.4% of routes have
+two ASPA publishers adjacent on the path.
+
+**The jump happens between the top 100 and the top 1000.** Going from 100 to 1000 synthetic
+publishers moves blocking from 1.8% to 44.5%. The largest hundred networks are not where the
+leaks pass; the next nine hundred are. That is a concrete and tractable deployment target, and
+it is the most useful number in this table.
+
+**Who filters matters much less than who publishes.** Across every scenario, restricting
+filtering to the top 20 networks costs only a few points against everybody filtering. The
+constraint is publication, not enforcement.
+
+Median blocking position sits at 0.6 to 0.83 of the way along the path, meaning a leak is
+usually stopped late, near the network that received it from the leaker rather than close to
+the origin. That matches the Phase 3 finding that a leak is invisible until it arrives
+somewhere it should never have gone.
+
+### Hijack candidates
+
+`detect/hijacks.py` implements the three simple signals from plan Section 10.5: an origin not
+seen in the baseline period, a more-specific prefix from a different network, and multiple
+origins at once. Siblings are suppressed using the organisation mapping, and each candidate
+carries its origin-validation state.
+
+It has not been run on real data, because it needs a 30-day baseline of daily routing tables
+and only one day has been ingested. The plan is explicit that this detector is context for RQ3
+rather than a contribution, so building the baseline is left for Phase 6, where the
+longitudinal run produces those days anyway.
+
+### What Phase 5 did not deliver
+
+Plan Section 11 accepts Phase 5 when the recall and precision numbers are written down and the
+counterfactual runs end to end for all curated incidents. Precision is measured above and the
+counterfactual runs end to end. **Recall is not measured, because `config/incidents.yaml` is
+still the unverified stub written in Phase 0.**
+
+Curating it means verifying, for each of the incidents in plan Section 14, the exact UTC
+window, the leaking or hijacking AS, the affected prefixes and at least one public
+post-mortem, then ingesting the update files for each window. Plan Section 14 marks every item
+`VERIFY` for good reason: dates and AS numbers reported in news coverage are frequently wrong,
+and an incident list assembled from memory would poison every number computed from it.
+
+That work is outstanding and Phase 5 should not be called complete until it is done.
+
+## Phase 5 completion (2026-09-18): curated incidents and recall
+
+The Phase 5 write-up above ended with recall unmeasured because the incident list was an
+unverified stub. It is now curated and recall is measured.
+
+### The curated list
+
+Seven incidents, each field taken from the primary post-mortem or analysis linked in the
+file, checked on 2026-09-18. `config/incidents.yaml` carries the sources.
+
+| Incident | Kind | Culprit |
+| --- | --- | --- |
+| 2017-08-25 Google leak affecting Japan | route leak | AS15169 |
+| 2018-04-24 Amazon Route 53 hijack | origin hijack | AS10297 |
+| 2019-06-24 Verizon and DQE leak | route leak | AS33154, AS396531 |
+| 2021-04-17 Vodafone Idea | origin hijack | AS55410 |
+| 2024-01-03 Orange España | RPKI misuse | AS12479 affected |
+| 2025-05-01 Cox Communications leak | route leak | AS22773 |
+| 2026-01-22 Cloudflare Miami leak | route leak | AS13335 |
+
+**The `kind` column is not decoration.** Three of the seven are not route leaks at all. An
+origin hijack travels a perfectly ordinary-looking path, so only origin validation can see
+it. In the Orange España incident the routing was correct and the signed records were the
+attack, so neither detector applies. Counting those three as misses would punish the leak
+detector for failing at something it was never built to do, and counting them as successes
+would be worse. They are reported as not applicable.
+
+Two entries needed their framing corrected against the sources rather than accepted from
+common description. The Vodafone Idea event is widely called a leak, but the primary analysis
+says AS55410 "started originating routes that don't belong to them", which is mis-origination
+and a different detector's problem. The Cox event is titled a route leak by its source, which
+also reports that 4,644 of the routes would be RPKI-invalid, again pointing at
+mis-origination; the disagreement is recorded rather than resolved by assumption.
+
+### Recall
+
+```bash
+uv run hijax incidents --collectors route-views2
+```
+
+| | Count |
+| --- | --- |
+| Curated incidents | 7 |
+| Of which route leaks | 4 |
+| Not applicable to a path-based detector | 3 |
+| Route leaks not visible to the collector used | 2 |
+| **Judged** | **2** |
+| **Detected** | **2** |
+| Missed | 0 |
+| **Recall** | **100%, on a denominator of two** |
+
+Both detections are emphatic rather than marginal. The 2017 Google leak produced 2,740
+sightings naming AS15169 across 16,462 distinct paths in 8.9 million announcements. The 2019
+Verizon and DQE leak produced 11,186 sightings across 11,291 distinct paths in 12.5 million.
+
+**Two of two is not a recall estimate worth much**, and it is reported as a count rather than
+dressed up as a percentage anywhere it might be mistaken for one. The honest reading is that
+the detector found both leaks it was in a position to see, and that the sample is far too
+small to say more. Widening the collector set is the obvious way to raise the denominator and
+is the first thing Phase 6 should do.
+
+### Two findings that changed the method
+
+**A leak has a network that causes it and a network that performs it, and they can differ.**
+The 2019 incident was first scored as a miss. The detector had in fact found it, naming
+AS396531 (Allegheny Technologies) in 11,186 paths, while the curated entry named AS33154
+(DQE), because the post-mortem blames the faulty optimizer at DQE. Both are right about
+different things. The optimizer ran at DQE; the network that took routes from one provider
+and handed them to another was Allegheny, and that turn is the only thing visible in an
+AS_PATH. The topology data agrees: AS396531's providers are exactly AS701 and AS33154. The
+incident file now records `expected_leaker_asns` so either is accepted, and the distinction
+is worth carrying into the paper because post-mortems reliably name the cause rather than the
+mechanism.
+
+**"The detector missed it" and "the collector never saw it" are different claims.** The
+Cloudflare Miami leak was first scored as a miss too. Investigating it showed the leak was
+IPv6 and confined to Miami, while every route the Oregon collector recorded passing through
+Cloudflare during the window was IPv4, and no path anywhere in the window contained both
+Cloudflare and Meta, the victim the post-mortem names. The collector was working normally,
+recording 239,947 announcements in those 25 minutes. It simply never saw the leak.
+
+Scoring that as a detector failure would have blamed the software for the shape of the
+measurement infrastructure, which plan Section 15 already lists as collector visibility bias.
+The tool now tests visibility explicitly: it compares the rate of routes *relayed through* the
+culprit during the incident against the rate in the quiet hours either side, and reports
+`not_visible` unless there is a clear elevation. A single relayed route inside the window is
+not evidence that a leak was visible, which is why the test compares rates rather than
+counting.
+
+Both the Cloudflare and Cox incidents come out `not_visible` at a single collector. That is a
+statement about one vantage point in Oregon, not about the incidents.
+
+### What this says about the project's limits
+
+Of seven real, well-documented incidents, a single-collector path-based detector could be
+judged on two. That ratio is itself a result worth reporting: most publicly documented BGP
+incidents are either not route leaks, or are invisible from any given vantage point. Any
+claim about how often ASPA would help has to be read against that.
+
+## Phase 6 (2026-09-18): longitudinal run and the regional lens
+
+Phase 6 answers RQ1 (how far ASPA has actually spread, and what that buys) and RQ4 (how India
+and the APNIC region compare with the world), and turns both into the figures the paper needs.
+
+### RQ4: India against its region and the world
+
+```bash
+uv run hijax regional --date 2026-09-01 --country IN --top 12
+```
+
+On the 2026-09-01 snapshot, with 86,699 networks seen originating routes:
+
+| Region | Routed networks | Publishing ASPA | Share |
+| --- | ---: | ---: | ---: |
+| Global | 86,547 | 2,479 | 2.86% |
+| APNIC region | 20,147 | 202 | 1.00% |
+| Registered IN | 2,931 | 54 | 1.84% |
+
+India is roughly **two-thirds of the global rate but nearly twice the APNIC regional rate**.
+The interesting comparison is the second one: India is not lagging its region, it is ahead of
+it. The APNIC region as a whole is what lags, at about a third of the global share, and since
+the APNIC region holds nearly a quarter of all routed networks that gap is most of why global
+adoption is as low as it is.
+
+The denominator is networks *seen originating a route*, not all registered networks. A network
+that announces nothing cannot meaningfully publish an ASPA record about its providers, and
+including tens of thousands of unrouted allocations would deflate every share for no reason.
+
+**The finding that matters is not the share.** It is this:
+
+| AS | Customer cone | Global rank | Publishes ASPA |
+| --- | ---: | ---: | --- |
+| AS9498 (Bharti Airtel) | 3,965 | 20 | no |
+| AS4755 (Tata Communications) | 2,477 | 35 | no |
+| AS9583 (Sify Limited) | 592 | 97 | no |
+| AS55836 (Reliance Jio Infocomm) | 445 | 130 | no |
+| AS55410 (Vodafone Idea) | 383 | 146 | no |
+| AS18229 (Pioneer Elabs) | 308 | 189 | no |
+| AS45820 (Tata Teleservices ISP) | 291 | 193 | no |
+| AS9730 (Bharti Airtel) | 190 | 264 | no |
+| AS17762 (Tata Teleservices Maharashtra) | 181 | 280 | no |
+| AS17439 (NTTCINS) | 152 | 331 | no |
+| AS45117 (Ishan's Network) | 150 | 337 | no |
+| AS133296 (Web Werks India) | 111 | 426 | no |
+
+Operator names are resolved from CAIDA's `20260801.as-org2info.jsonl` rather than asserted
+from memory. Note that the twelve AS numbers belong to about nine distinct organisations:
+Bharti Airtel holds AS9498 and AS9730, and Tata entities hold AS4755, AS45820 and AS17762.
+
+**None of India's twelve largest transit networks publishes an ASPA record**, including two in
+the global top 40 by customer cone. The 54 Indian publishers are all small networks.
+
+That is the opposite of the deployment order that would actually help. ASPA validation needs
+*adjacent* publishers to confirm a hop, so a record published by a large transit network covers
+every hop into and out of it and therefore protects everything in its customer cone. A record
+published by a stub network at the edge covers one hop. India's adoption is happening where it
+does the least good, and a single record from AS9498 would cover more paths than all 54 current
+Indian publishers combined.
+
+AS55410 in that table is the same network named in the 2021 mis-origination incident in
+`config/incidents.yaml`. It still publishes nothing.
+
+Two limits travel with every number above, and both are stated in the module docstring, the CLI
+help and the figure subtitle rather than left to the reader:
+
+* **Country means country of registration, not where the network operates.** That is what the
+  registry files record. A network registered in India may carry most of its traffic elsewhere,
+  and large operators register numbers in several countries.
+* **None of this project's collectors is in India.** The vantage points are in Amsterdam,
+  Oregon, Singapore, Tokyo and Sydney, so the Indian view is assembled from how Indian networks
+  appear from outside. The APNIC region is selected by *allocating registry* rather than by a
+  hand-written list of countries, so that at least needs no geographic judgement of its own.
+
+### RQ1: where publishers sit on real paths
+
+The adoption share says how many networks publish. It does not say what that buys, because a
+record only does work when the network next to it on the path also has one. Measured across the
+2026-09-01 routes:
+
+| Position | Share of routes |
+| --- | ---: |
+| A publisher anywhere on the path | 40.0% |
+| A publisher somewhere in transit | 33.2% |
+| The collector's own peer publishes | 8.4% |
+| The origin publishes | 3.0% |
+| **Two adjacent publishers** | **5.4%** |
+| **Every hop covered** | **0.04%** |
+
+Two in five routes already touch a publisher, which sounds like meaningful progress. Only
+**5.4%** contain an adjacent pair, which is the first point at which ASPA can say anything about
+a hop, and **0.04%** are fully covered end to end. The gap between 40% and 5.4% is the whole
+story of partial deployment: adoption is scattered, and scattered adoption composes badly,
+because value appears only where two publishers happen to land next to each other.
+
+This is also the honest frame for the counterfactual numbers from Phase 5. Claims of the form
+"ASPA would have blocked X" are claims about a hypothetical adoption pattern, not today's.
+
+### Longitudinal coverage
+
+The RPKI half of the longitudinal series was already complete from Phase 1: **155 weekly
+snapshots** of VRPs and ASPAs from 2023-10-11, the first day ASPA data exists, to 2026-09-16.
+The BGP half is far more expensive, so it is sampled rather than complete, via
+`scripts/phase6_longitudinal.py`:
+
+* **Quarterly, not weekly.** A weekly BGP sweep across three years is about 150 table dumps.
+* **One collector**, route-views2 in Oregon, the same vantage point Phases 4 and 5 used, so the
+  series is comparable with them.
+
+The script carries a download budget that stops the sweep before it can reach the 5 GB
+threshold CLAUDE.md rule 8 says to ask the owner about, so it cannot quietly cross it. Building
+that guard corrected an assumption: bgpkit streams each dump straight from the archive and
+never caches it under `data/raw`, so a guard watching disk growth would have measured nothing.
+It now reads each dump's `Content-Length` before ingesting. Measured on 2026-09-18, a
+route-views2 dump runs 104 MB in 2023 down to 76 MB in 2026, so the whole sweep is about
+**1.17 GB** — comfortably inside the limit. D-048 records both the error and the measurement.
+
+`hijax longitudinal` prints the resulting series and `hijax report` draws it as
+`validation_over_time.png`. A date missing one of the three inputs still appears in the series
+with nulls, so a gap in the sweep is visible rather than silently skipped.
+
+### Figures
+
+`uv run hijax report` regenerates all six figures into `figures/` from stored tables alone. It
+downloads nothing, so the same data always produces the same pictures, and a figure whose
+inputs are missing is named and skipped rather than drawn from whatever is to hand.
+
+| Figure | Question |
+| --- | --- |
+| `aspa_adoption_over_time.png` | RQ1: publishers per week since 2023-10 |
+| `aspa_adoption_by_registry.png` | RQ1: which registries the growth comes from |
+| `rpki_coverage_over_time.png` | RQ1: ROA coverage for context |
+| `aspa_path_coverage.png` | RQ1: where publishers sit on real paths |
+| `regional_comparison.png` | RQ4: India, APNIC and global |
+| `counterfactual_blocking.png` | RQ3: what each adoption scenario would block |
+
+
+## Closing out the Phase 1 and Phase 2 acceptance misses (2026-09-18)
+
+Two acceptance criteria were still outstanding when Phase 6 finished. Working on them turned
+up a bug that mattered considerably more than either.
+
+### Phase 2: what the one-hour bar is actually made of
+
+Phase 2 accepts when one day across all selected collectors ingests on the laptop in under an
+hour with under 8 GB of RAM. The original run took 60.2 minutes, missing by twelve seconds.
+
+The obvious remedy was to run the six collectors concurrently instead of one after another.
+The link was measured first, and the first measurement was wrong in a way worth recording.
+
+A quick probe fetched the first 6 MB of each of four dumps, serially and then in parallel, and
+reported 232 KB/s against 279 KB/s - an apparent 1.2x, suggesting concurrency was nearly
+pointless. **That probe under-measured.** Six megabytes is far too short a transfer to escape
+TCP slow start, so most of each connection's sample was spent ramping up rather than at
+steady state, and splitting a link four ways makes that worse. Sampling the real ingest
+instead, over 152 seconds of sustained six-way transfer:
+
+| | aggregate throughput |
+| --- | ---: |
+| Serial, one connection at a time | 232 KB/s |
+| Six connections at once, sustained | **490 KB/s** (338-609 across five 30s intervals) |
+
+So the link does give roughly **2.1x** to concurrency, not 1.2x. The lesson is about
+measurement rather than networking: a throughput probe has to run long enough to reach steady
+state, or it measures the ramp instead of the road.
+
+One day across the six collectors is 818 MB:
+
+| Collector | Dump size |
+| --- | ---: |
+| rrc00 | 427.0 MB |
+| route-views.sg | 119.0 MB |
+| rrc23 | 82.6 MB |
+| route-views2 | 82.0 MB |
+| route-views.sydney | 64.2 MB |
+| rrc06 | 42.9 MB |
+| **Total** | **817.6 MB** |
+
+At the serial rate that is **58.7 minutes of pure transfer**, before a single route is parsed,
+which is what the original 60.2-minute run was made of: the laptop's connection plus about
+ninety seconds of everything else. At the sustained six-way rate the same bytes take about
+**28 minutes**. rrc00 alone is 427 MB, more than half the total, so it sets the floor on any
+run that fetches it.
+
+### The bug that came out of it
+
+Running the six collectors at once produced **silently truncated data**. Ingestion handed a
+URL to the MRT parser, and a connection dropping mid-file just ended the iteration, so a
+partial dump was written out as a finished table with a stats file beside it.
+
+| rrc06, 2026-09-01 | rows | peers | prefixes | seconds |
+| --- | ---: | ---: | ---: | ---: |
+| `--jobs 6`, streamed from URL | 733,116 | 8 | 145,946 | 21.0 |
+| `--jobs 1`, serial | 6,751,923 | 21 | 1,355,629 | 180.7 |
+
+The parallel run kept 11% of the rows and reported success. Two things should have been
+obvious and neither was checked: a 42.9 MB file cannot arrive in 21 seconds on a 237 KB/s
+link, and a full routing table holds about 1.36 million prefixes, not 146 thousand.
+
+Ingestion now downloads each dump through the project's own verified downloader, which
+compares what arrived against `Content-Length`, retries a short read and raises rather than
+returning a truncated file, and then parses the local copy. The update-file path used by the
+Phase 5 incident analysis had the same hole and got the same fix. D-050 records it in full,
+including the consequence that Phase 5's recall numbers were produced on the vulnerable path
+and should be re-run before they are relied on.
+
+The earlier atomic-rename fix was necessary but solved a different problem: it stopped a
+half-*written* Parquet file being mistaken for a complete one, and could say nothing about a
+half-*read* source.
+
+### Phase 1: separating what can be proved from what needs a calendar
+
+Phase 1 accepts when the ASPA count matches a public reference *and* the daily job has run
+seven days in a row. The first half passed. The second half has two parts that were being run
+together, and they are worth separating.
+
+What the criterion is really testing is that the job works **repeatedly and idempotently on a
+fresh checkout**. Every GitHub Actions run starts from a clean clone with `data/` empty, so a
+run holds only the day it just ingested; the published series survives solely because it is
+committed and each run *merges* into it. A broken merge would leave the series permanently one
+day long, and only a multi-day run would expose it.
+
+`scripts/phase1_seven_day_replay.py` replays exactly that: seven consecutive dates, each
+starting from an empty processed directory, each merging into the one JSON that carries over.
+
+The streak itself is now checked rather than remembered. `hijax adoption` and the workflow both
+compute the longest run of consecutive days from the published JSON and print it. Against the
+real file today that is **154 snapshots, streak of 1** - the backfill is weekly, and seven-day
+spacing correctly counts as a streak of one, which is the case the unit tests pin down.
+
+**What cannot be manufactured:** seven calendar days elapsing with the schedule enabled. The
+repository was re-initialised on 2026-09-18 and nothing has been pushed, so the workflow has
+never fired. That clock starts when it is pushed, and nothing here should be read as a
+substitute for it.

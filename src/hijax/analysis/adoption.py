@@ -12,8 +12,9 @@ of registration. The country caveat from ``hijax.ingest.meta`` applies to the th
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -166,6 +167,42 @@ def write_json(tables: AdoptionTables, destination: Path, *, top_countries: int 
     payload = to_json(tables, top_countries=top_countries)
     destination.write_text(json.dumps(payload, indent=1, sort_keys=False) + "\n", encoding="utf-8")
     return destination
+
+
+@dataclass(frozen=True, slots=True)
+class DailyStreak:
+    """The longest run of consecutive calendar days in the published series."""
+
+    length: int
+    first: date | None
+    last: date | None
+
+    def meets(self, required: int) -> bool:
+        return self.length >= required
+
+
+def longest_daily_streak(snapshot_dates: Iterable[str | date]) -> DailyStreak:
+    """The longest run of consecutive days present in the series.
+
+    Plan Section 11 Phase 1 accepts only once the daily job "has run 7 days in a row". That is
+    a claim about the published series, so it should be checkable from the series rather than
+    remembered. Weekly backfill snapshots sit seven days apart and correctly count as a streak
+    of one each: only genuinely adjacent days extend a run.
+    """
+    parsed = sorted({date.fromisoformat(d) if isinstance(d, str) else d for d in snapshot_dates})
+    if not parsed:
+        return DailyStreak(0, None, None)
+
+    best_len, best_start, best_end = 1, parsed[0], parsed[0]
+    run_len, run_start = 1, parsed[0]
+    for previous, current in zip(parsed, parsed[1:], strict=False):
+        if current - previous == timedelta(days=1):
+            run_len += 1
+        else:
+            run_len, run_start = 1, current
+        if run_len > best_len:
+            best_len, best_start, best_end = run_len, run_start, current
+    return DailyStreak(best_len, best_start, best_end)
 
 
 def _merge_rows(

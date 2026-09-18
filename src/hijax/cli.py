@@ -5,6 +5,7 @@ Subcommands are added phase by phase, so every command that exists actually work
 
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter
 from datetime import date, datetime
@@ -16,6 +17,7 @@ import typer
 
 from hijax import __version__
 from hijax.analysis.adoption import build as build_adoption
+from hijax.analysis.adoption import longest_daily_streak
 from hijax.analysis.adoption import update_json as update_adoption_json
 from hijax.analysis.correctness import (
     blame_by_as,
@@ -23,8 +25,21 @@ from hijax.analysis.correctness import (
     completeness_summary,
     estimate_false_positives,
 )
-from hijax.config import DEFAULT_CONFIG_PATH, load_config
-from hijax.ingest.bgp import ingest_many
+from hijax.analysis.longitudinal import build_series, publisher_series
+from hijax.analysis.regional import compare_regions, largest_transit
+from hijax.config import DEFAULT_CONFIG_PATH, Config, load_config
+from hijax.counterfactual import (
+    Filtering,
+    Publication,
+    build_scenario,
+    evaluate_route,
+    summarise,
+)
+from hijax.detect.leaks import detect_in_path
+from hijax.detect.run import detect_day
+from hijax.incidents import Incident, IncidentResult, load_incidents, recall
+from hijax.incidents import Outcome as IncidentOutcome
+from hijax.ingest.bgp import ingest_many, ingest_updates
 from hijax.ingest.meta import (
     RelationshipLookup,
     ingest_month,
@@ -33,9 +48,13 @@ from hijax.ingest.meta import (
 )
 from hijax.ingest.rpki import date_range, ingest_date
 from hijax.paths import PathFlag
+from hijax.report import build_all as build_figures
 from hijax.validate.aspa import AspaState
 from hijax.validate.rov import RovState
 from hijax.validate.run import load_aspa_registry, load_vrp_index, validate_collector
+
+#: Plan Section 11 Phase 1: the daily job must have run this many days in a row.
+DAILY_STREAK_REQUIRED = 7
 
 app = typer.Typer(help="Hijax: BGP route-security measurement pipeline.", no_args_is_help=True)
 
@@ -201,6 +220,24 @@ def adoption(
     if export is not None:
         written = update_adoption_json(tables, export, top_countries=top_countries)
         typer.echo(f"wrote {written}")
+        published = json.loads(written.read_text(encoding="utf-8"))
+        days = [row["snapshot_date"] for row in published.get("by_day", [])]
+    else:
+        days = [str(d) for d in by_day["snapshot_date"].to_list()]
+
+    # Plan Section 11 Phase 1 accepts only once the daily job has run seven days in a row.
+    # That is a property of the published series, so report it rather than rely on memory.
+    streak = longest_daily_streak(days)
+    if streak.length >= DAILY_STREAK_REQUIRED:
+        typer.echo(
+            f"daily streak: {streak.length} consecutive days "
+            f"({streak.first} .. {streak.last}) - meets the {DAILY_STREAK_REQUIRED}-day bar"
+        )
+    else:
+        typer.echo(
+            f"daily streak: {streak.length} consecutive day(s); "
+            f"the {DAILY_STREAK_REQUIRED}-day acceptance bar is not met yet"
+        )
 
 
 @app.command("ingest-bgp")
@@ -501,3 +538,582 @@ def correctness(
                 f"{row['distinct_prefixes']:>7,} prefixes  "
                 f"claimed providers: {row['claimed_providers'][:6]}"
             )
+
+
+@app.command("detect")
+def detect(
+    day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
+    collectors: Annotated[
+        str | None,
+        typer.Option("--collectors", help="Comma-separated. Defaults to the configured set."),
+    ] = None,
+    month: Annotated[
+        str | None, typer.Option("--month", help="Relationship month, default the previous.")
+    ] = None,
+    min_peers: Annotated[
+        int, typer.Option("--min-peers", help="Vantage points needed to corroborate.")
+    ] = 2,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+) -> None:
+    """Find route leaks in the stored routes for a date.
+
+    Plain English: a route leak is a network passing on a route it was not paid to carry,
+    which shows up as a path that climbs the hierarchy again after coming down. Relationships
+    come from the month before, so they were not inferred from the events being examined.
+
+    A candidate seen from only one vantage point is reported but not counted as corroborated,
+    because the relationships underneath are inferred and carry errors.
+    """
+    cfg = load_config(config_path)
+    target = _parse_day(day, "--date")
+    chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
+    rel_month = month or _previous_month(target)
+
+    rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
+    if not rel_path.exists():
+        typer.echo(f"no relationships for {rel_month}")
+        raise typer.Exit(code=1)
+    relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
+
+    summary, findings = detect_day(cfg, chosen, target, relationships, min_peers=min_peers)
+    typer.echo(f"routes examined     : {summary.routes_examined:>10,}")
+    typer.echo(f"leak sightings      : {summary.observations:>10,}")
+    typer.echo(f"distinct candidates : {summary.findings:>10,}")
+    typer.echo(
+        f"corroborated ({min_peers}+ peers): {summary.corroborated:>10,}"
+        f"  ({summary.corroborated / summary.findings:.1%})"
+        if summary.findings
+        else "corroborated: 0"
+    )
+    typer.echo("\nby RFC 7908 type:")
+    for kind, count in summary.by_type.most_common():
+        typer.echo(f"  {kind:<20} {count:>8,}")
+
+    top = [f for f in findings if f.corroborated][:10]
+    if top:
+        typer.echo("\nmost widely seen corroborated candidates:")
+        for f in top:
+            typer.echo(
+                f"  {f.prefix:<20} leaker AS{f.leaker_asn:<8} {f.leak_type:<18} "
+                f"{f.distinct_peers} peers"
+            )
+
+
+@app.command("counterfactual")
+def counterfactual(
+    day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
+    scenarios: Annotated[
+        str, typer.Option("--scenarios", help="Comma-separated: S0,S1,S2,S3.")
+    ] = "S0,S1,S2,S3",
+    filters: Annotated[
+        str, typer.Option("--filters", help="Comma-separated: F-all,F-top20,F-top100.")
+    ] = "F-all,F-top20,F-top100",
+    month: Annotated[
+        str | None, typer.Option("--month", help="Relationship month, default the previous.")
+    ] = None,
+    corroborated_only: Annotated[
+        bool, typer.Option("--corroborated-only/--all", help="Use only multi-peer findings.")
+    ] = True,
+    limit: Annotated[
+        int | None, typer.Option("--limit", help="Evaluate at most this many leaks.")
+    ] = None,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+) -> None:
+    """RQ3: would ASPA have stopped these leaks, and where?
+
+    Plain English: for each detected leak, replay it under different assumptions about who
+    published ASPA records and who drops Invalid routes, and see whether it would have
+    survived.
+
+    S3 gives every network a synthetic record copied from the inferred topology, and the
+    leaks were detected with that same topology, so S3 is an upper bound rather than a
+    prediction. Every S3 row is flagged accordingly.
+    """
+    cfg = load_config(config_path)
+    target = _parse_day(day, "--date")
+    rel_month = month or _previous_month(target)
+
+    leaks_path = (
+        cfg.paths.processed / "leaks" / f"snapshot_date={target:%Y-%m-%d}" / "leaks.parquet"
+    )
+    rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
+    meta_path = cfg.paths.processed / "as_meta" / f"month={rel_month}" / "as_meta.parquet"
+    aspas_path = (
+        cfg.paths.processed / "aspas" / f"snapshot_date={target:%Y-%m-%d}" / "aspas.parquet"
+    )
+    for needed in (leaks_path, rel_path, meta_path, aspas_path):
+        if not needed.exists():
+            typer.echo(f"missing {needed}")
+            raise typer.Exit(code=1)
+
+    relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
+    as_meta = pl.read_parquet(meta_path)
+    aspa_frame = pl.read_parquet(aspas_path)
+    real = {
+        int(c): frozenset(int(p) for p in provs)
+        for c, provs in zip(aspa_frame["customer_asn"], aspa_frame["provider_asns"], strict=True)
+    }
+
+    leaks = pl.read_parquet(leaks_path)
+    if corroborated_only:
+        leaks = leaks.filter(pl.col("corroborated"))
+    if limit is not None:
+        leaks = leaks.head(limit)
+    if leaks.height == 0:
+        typer.echo("no leaks to evaluate")
+        raise typer.Exit(code=1)
+
+    chosen_pub = [Publication(s.strip()) for s in scenarios.split(",")]
+    chosen_filters = [Filtering(f.strip()) for f in filters.split(",")]
+
+    typer.echo(f"building {len(chosen_pub)} publication scenarios")
+    built = []
+    for publication in chosen_pub:
+        scenario = build_scenario(publication, real, relationships, as_meta)
+        built.append(scenario)
+        note = "  UPPER BOUND ONLY" if scenario.is_upper_bound else ""
+        typer.echo(
+            f"  {publication}: {scenario.real_records:,} real + "
+            f"{scenario.synthetic_records:,} synthetic{note}"
+        )
+
+    typer.echo(f"\nevaluating {leaks.height:,} leaks")
+    outcomes = []
+    for path in leaks["example_path"]:
+        outcomes.extend(evaluate_route(list(path), built, chosen_filters, relationships, as_meta))
+
+    frame = summarise(outcomes)
+    out = cfg.paths.processed / "counterfactual" / f"snapshot_date={target:%Y-%m-%d}"
+    out.mkdir(parents=True, exist_ok=True)
+    frame.write_parquet(out / "counterfactual.parquet")
+
+    typer.echo("\n  scenario  filters     blocked   share   median position")
+    for row in frame.iter_rows(named=True):
+        flag = "  <- upper bound only" if row["upper_bound_only"] else ""
+        median = row["median_blocking_position"]
+        median_text = f"{median:.2f}" if median is not None else "   -"
+        typer.echo(
+            f"  {row['publication']:<9} {row['filtering']:<11} "
+            f"{row['blocked']:>7,} {row['blocked_share']:>7.1%}  {median_text:>8}{flag}"
+        )
+    typer.echo(f"\nwrote {out / 'counterfactual.parquet'}")
+
+
+@app.command("incidents")
+def incidents(
+    incident_id: Annotated[
+        str | None, typer.Option("--id", help="Run one incident instead of all of them.")
+    ] = None,
+    collectors: Annotated[
+        str, typer.Option("--collectors", help="Collectors to pull update files from.")
+    ] = "rrc00,route-views2",
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+    incidents_path: Annotated[
+        Path, typer.Option("--incidents", help="Curated incident list.")
+    ] = Path("config/incidents.yaml"),
+    list_only: Annotated[
+        bool, typer.Option("--list", help="Show the curated list without fetching anything.")
+    ] = False,
+) -> None:
+    """Replay curated incidents and measure what the leak detector finds (RQ3).
+
+    Plain English: each incident is a real routing failure with a public post-mortem. This
+    fetches the BGP messages collectors recorded during the incident and checks whether the
+    detector flags the network that caused it.
+
+    Only route leaks can be judged this way. An origin hijack travels an ordinary-looking
+    path, and in an RPKI misuse incident the routing was correct, so neither is something a
+    path-based detector could find. Both are reported as not applicable, never as misses.
+    """
+    cfg = load_config(config_path)
+    curated = load_incidents(incidents_path)
+    chosen = [c.strip() for c in collectors.split(",")]
+
+    if incident_id:
+        curated = [i for i in curated if i.id == incident_id]
+        if not curated:
+            typer.echo(f"no incident with id {incident_id!r}")
+            raise typer.Exit(code=1)
+
+    typer.echo(f"curated incidents: {len(curated)}")
+    for incident in curated:
+        mark = "verified" if incident.verified else "UNVERIFIED"
+        culprit = f"AS{incident.culprit_asn}" if incident.culprit_asn else "-"
+        typer.echo(f"  {incident.id:<34} {incident.kind:<14} {culprit:<10} {mark}")
+    if list_only:
+        return
+
+    unverified = [i for i in curated if not i.verified]
+    if unverified:
+        typer.echo(f"\nrefusing to analyse {len(unverified)} unverified entries")
+
+    results: list[IncidentResult] = []
+    for incident in curated:
+        if not incident.verified:
+            continue
+        typer.echo(f"\n=== {incident.id} ({incident.kind}) ===")
+        results.append(_run_incident(cfg, incident, chosen))
+
+    summary = recall(results)
+    typer.echo("\n" + "=" * 62)
+    typer.echo("RECALL on curated route leaks")
+    typer.echo(f"  curated incidents               : {summary['curated_incidents']}")
+    typer.echo(f"  of which route leaks            : {summary['route_leaks']}")
+    typer.echo(f"  not applicable to this detector : {summary['not_applicable']}")
+    typer.echo(f"  no archive data for the window  : {summary['no_data']}")
+    typer.echo(f"  culprit never seen by a collector: {summary['culprit_absent']}")
+    typer.echo(f"  leak not visible to these collectors: {summary['not_visible']}")
+    typer.echo(f"  judged                          : {summary['judged']}")
+    typer.echo(f"  detected                        : {summary['detected']}")
+    typer.echo(f"  missed                          : {summary['missed']}")
+    if summary["recall"] is None:
+        typer.echo("  recall                          : not measurable, nothing judged")
+    else:
+        typer.echo(f"  recall                          : {summary['recall']:.0%}")
+
+
+def _run_incident(cfg: Config, incident: Incident, collectors: list[str]) -> IncidentResult:
+    """Fetch one incident's window and look for its culprit in the detector's output."""
+    if not incident.detectable_by_leak_detector:
+        typer.echo("  not a route leak; a path-based detector cannot see this one")
+        return IncidentResult(
+            incident_id=incident.id,
+            kind=incident.kind,
+            outcome=IncidentOutcome.NOT_APPLICABLE,
+            note="kind is not route_leak",
+        )
+    if not incident.has_window or incident.culprit_asn is None:
+        return IncidentResult(
+            incident_id=incident.id,
+            kind=incident.kind,
+            outcome=IncidentOutcome.NO_DATA,
+            note="no window or culprit recorded",
+        )
+
+    assert incident.window_start is not None and incident.window_end is not None
+    month = _previous_month(incident.window_start.date())
+    rel_path = cfg.paths.processed / "as_rel" / f"month={month}" / "as_rel.parquet"
+    if not rel_path.exists():
+        typer.echo(f"  no relationships for {month}; run 'hijax ingest-meta --month {month}'")
+        return IncidentResult(
+            incident_id=incident.id,
+            kind=incident.kind,
+            outcome=IncidentOutcome.NO_DATA,
+            note=f"no relationships for {month}",
+        )
+    relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
+
+    frames = []
+    for collector in collectors:
+        destination = (
+            cfg.paths.processed
+            / "incident_routes"
+            / f"incident={incident.id}"
+            / f"collector={collector}"
+            / "routes.parquet"
+        )
+        try:
+            outcome = ingest_updates(
+                cfg, collector, incident.window_start, incident.window_end, destination
+            )
+        except Exception as exc:  # noqa: BLE001 - report and try the next collector
+            typer.echo(f"  {collector}: {exc}")
+            continue
+        state = "cached" if outcome.skipped else "fetched"
+        gap = (
+            f", {len(outcome.missing_files)} of {outcome.files_read} update files unreachable"
+            if outcome.missing_files
+            else ""
+        )
+        typer.echo(f"  {collector}: {outcome.rows:,} announcements ({state}){gap}")
+        frames.append(
+            pl.read_parquet(destination, columns=["peer_ip", "prefix", "as_path", "timestamp"])
+        )
+
+    if not frames:
+        return IncidentResult(
+            incident_id=incident.id,
+            kind=incident.kind,
+            outcome=IncidentOutcome.NO_DATA,
+            note="no update files could be fetched",
+        )
+
+    frame = pl.concat(frames)
+    culprit = incident.culprit_asn
+    core_start = _parse_iso(incident.raw.get("start_utc")) or incident.window_start
+    core_end = _parse_iso(incident.raw.get("end_utc")) or incident.window_end
+
+    observations = []
+    with_culprit = 0
+    relayed = 0
+    relayed_in_window = 0
+    seen: set[tuple[int, ...]] = set()
+    for peer_ip, prefix, as_path, stamp in frame.iter_rows():
+        path = tuple(as_path)
+        if culprit not in path:
+            continue
+        with_culprit += 1
+        # A route *relayed through* the culprit is what a leak looks like. A route the
+        # culprit originated is its own announcement and says nothing either way.
+        is_relayed = path[0] != culprit
+        if is_relayed:
+            relayed += 1
+            if core_start and core_end and core_start <= stamp <= core_end:
+                relayed_in_window += 1
+        if path in seen:
+            continue
+        seen.add(path)
+        observations.extend(detect_in_path("incident", peer_ip, prefix, path, relationships))
+
+    expected = set(incident.expected_leaker_asns) or {culprit}
+    flagged = sum(1 for o in observations if o.leaker_asn in expected)
+    named = sorted({o.leaker_asn for o in observations if o.leaker_asn in expected})
+    typer.echo(f"  routes examined                  : {frame.height:,}")
+    typer.echo(f"  paths containing AS{culprit:<13}: {with_culprit:,}")
+    typer.echo(f"  of those, relayed through it     : {relayed:,}")
+    typer.echo(f"  relayed during the incident itself: {relayed_in_window:,}")
+    typer.echo(f"  distinct paths examined          : {len(seen):,}")
+    typer.echo(f"  leak sightings on those paths    : {len(observations):,}")
+    typer.echo(f"  expected leaker(s)               : {sorted(expected)}")
+    typer.echo(f"  sightings naming one of them     : {flagged:,} {named or ''}")
+
+    if with_culprit == 0:
+        outcome_kind = IncidentOutcome.CULPRIT_ABSENT
+        note = "the culprit appears on no path these collectors recorded"
+    elif flagged:
+        outcome_kind = IncidentOutcome.DETECTED
+        note = ""
+    elif not _leak_looks_visible(
+        relayed,
+        relayed_in_window,
+        core_start,
+        core_end,
+        incident.window_start,
+        incident.window_end,
+    ):
+        outcome_kind = IncidentOutcome.NOT_VISIBLE
+        note = "no elevation in routes relayed through the culprit during the incident"
+    else:
+        outcome_kind = IncidentOutcome.MISSED
+        note = "leaked-looking routes were visible but the culprit was never flagged"
+    typer.echo(f"  outcome                          : {outcome_kind.value}  {note}")
+
+    return IncidentResult(
+        incident_id=incident.id,
+        kind=incident.kind,
+        outcome=outcome_kind,
+        routes_examined=frame.height,
+        paths_with_culprit=with_culprit,
+        candidates_found=len(observations),
+        culprit_flagged=flagged,
+        note=note,
+    )
+
+
+def _parse_iso(value: object) -> datetime | None:
+    """Parse an ISO timestamp from the incident file, tolerating a trailing Z."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _leak_looks_visible(
+    relayed_total: int,
+    relayed_in_window: int,
+    core_start: datetime | None,
+    core_end: datetime | None,
+    padded_start: datetime | None,
+    padded_end: datetime | None,
+) -> bool:
+    """Did anything leak-shaped actually reach these collectors during the incident?
+
+    A leak should show up as a burst: many more routes relayed through the culprit during the
+    incident than in the quiet hours either side. Comparing rates rather than raw counts
+    matters, because a network that legitimately carries a trickle of transit will always show
+    a few relayed routes, and treating one of those as evidence that the leak was visible
+    would turn an invisible leak into a false accusation against the detector.
+
+    Visible means the in-window count is at least three times what the surrounding rate
+    predicts, and at least ten routes. Below that, there is nothing here to detect.
+    """
+    if not all((core_start, core_end, padded_start, padded_end)):
+        return relayed_in_window > 0
+    assert core_start and core_end and padded_start and padded_end
+
+    core_minutes = max((core_end - core_start).total_seconds() / 60, 1.0)
+    padded_minutes = max((padded_end - padded_start).total_seconds() / 60, 1.0)
+    outside_minutes = max(padded_minutes - core_minutes, 1.0)
+
+    outside = max(relayed_total - relayed_in_window, 0)
+    expected = (outside / outside_minutes) * core_minutes
+    return relayed_in_window >= max(10, 3 * expected)
+
+
+@app.command("report")
+def report(
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+    destination: Annotated[
+        Path | None, typer.Option("--out", help="Where to write the figures.")
+    ] = None,
+) -> None:
+    """Regenerate every paper figure the stored data supports.
+
+    Plain English: this draws the charts for the write-up from the tables already on disk.
+    It downloads nothing, so the same data always produces the same pictures. A figure whose
+    inputs are missing is named and skipped rather than drawn from whatever is to hand.
+    """
+    cfg = load_config(config_path)
+    result = build_figures(cfg, destination=destination)
+
+    for path in result.written:
+        typer.echo(f"wrote {path}")
+    for name, reason in result.skipped:
+        typer.echo(f"skipped {name}: {reason}")
+    if not result.written:
+        typer.echo("nothing could be drawn; ingest some data first")
+        raise typer.Exit(code=1)
+    typer.echo(f"\n{len(result.written)} figures written, {len(result.skipped)} skipped")
+
+
+@app.command("regional")
+def regional(
+    day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
+    country: Annotated[str, typer.Option("--country", help="Two-letter country code.")] = "IN",
+    month: Annotated[
+        str | None, typer.Option("--month", help="Metadata month, default the previous.")
+    ] = None,
+    collectors: Annotated[
+        str | None, typer.Option("--collectors", help="Collectors whose routes to read.")
+    ] = None,
+    top: Annotated[int, typer.Option("--top", help="How many networks to list.")] = 15,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+) -> None:
+    """RQ4: one country and its region against the world.
+
+    Plain English: this compares how many networks registered in a country publish an ASPA
+    record with how many do worldwide, and lists that country's largest transit networks with
+    their current standing.
+
+    Two limits travel with every number. The country is where the AS number was
+    *registered*, not where the network operates. And none of this project's collectors sits
+    in India, so the Indian view is assembled from how Indian networks appear elsewhere.
+    """
+    cfg = load_config(config_path)
+    target = _parse_day(day, "--date")
+    meta_month = month or _previous_month(target)
+    chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
+
+    meta_path = cfg.paths.processed / "as_meta" / f"month={meta_month}" / "as_meta.parquet"
+    aspas_path = (
+        cfg.paths.processed / "aspas" / f"snapshot_date={target:%Y-%m-%d}" / "aspas.parquet"
+    )
+    for needed in (meta_path, aspas_path):
+        if not needed.exists():
+            typer.echo(f"missing {needed}")
+            raise typer.Exit(code=1)
+
+    as_meta = pl.read_parquet(meta_path)
+    publishers = {int(a) for a in pl.read_parquet(aspas_path)["customer_asn"]}
+
+    routed: set[int] = set()
+    for collector in chosen:
+        routes = (
+            cfg.paths.processed
+            / "routes"
+            / f"snapshot_date={target:%Y-%m-%d}"
+            / f"collector={collector}"
+            / "routes.parquet"
+        )
+        if not routes.exists():
+            continue
+        frame = pl.read_parquet(routes, columns=["origin_asn"]).drop_nulls()
+        routed |= {int(a) for a in frame["origin_asn"].unique()}
+    if not routed:
+        typer.echo("no routes stored for that date; run 'hijax ingest-bgp' first")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"snapshot {target}, metadata {meta_month}, {len(routed):,} routed networks seen")
+    comparison = compare_regions(as_meta, publishers, routed, country=country)
+    typer.echo("")
+    typer.echo(f"  {'region':<18}{'routed':>10}{'publishers':>12}{'share':>9}")
+    for row in comparison.iter_rows(named=True):
+        typer.echo(
+            f"  {row['region']:<18}{row['routed_networks']:>10,}"
+            f"{row['publishers_that_route']:>12,}{row['share_of_routed']:>9.2%}"
+        )
+
+    typer.echo(f"\nlargest {country} networks by customer cone:")
+    ranked = largest_transit(as_meta, publishers, country=country, top=top)
+    typer.echo(f"  {'AS':<10}{'cone':>9}{'rank':>7}  publishes ASPA")
+    for row in ranked.iter_rows(named=True):
+        mark = "yes" if row["publishes_aspa"] else "no"
+        rank = row["rank"] if row["rank"] is not None else "-"
+        typer.echo(f"  AS{row['asn']:<8}{row['cone_size']:>9,}{rank:>7}  {mark}")
+
+    published = ranked.filter(pl.col("publishes_aspa")).height
+    typer.echo(
+        f"\n{published} of the top {ranked.height} publish an ASPA record. "
+        "Country here means country of registration, not where the network operates."
+    )
+
+
+@app.command("longitudinal")
+def longitudinal(
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+    csv_out: Annotated[
+        Path | None, typer.Option("--csv", help="Also write the series as CSV.")
+    ] = None,
+) -> None:
+    """Show ROV, ASPA and leak aggregates across every validated snapshot date.
+
+    Plain English: this lines up each date the project has validated and shows what share of
+    routes fell into each state, so a trend over time is visible rather than a single day.
+
+    The RPKI half of the series is weekly and complete. The BGP half is sampled quarterly from
+    one collector, because a weekly sweep across three years is about 150 table dumps.
+    """
+    cfg = load_config(config_path)
+    series = build_series(cfg)
+    if series.height == 0:
+        typer.echo("no validated dates stored yet; run 'hijax validate' first")
+        raise typer.Exit(code=1)
+
+    publishers = publisher_series(cfg)
+    typer.echo(
+        f"{series.height} validated date(s); "
+        f"{publishers.height} weekly RPKI snapshot(s) for context"
+    )
+    typer.echo("")
+    header = f"  {'date':<12}{'routes':>12}{'ROV valid':>11}{'ROV inv':>9}{'leaks':>9}"
+    typer.echo(header)
+    for row in series.iter_rows(named=True):
+        routes = row.get("routes")
+        valid, invalid = row.get("rov_valid"), row.get("rov_invalid")
+        leaks = row.get("leak_findings")
+        typer.echo(
+            f"  {str(row['snapshot_date']):<12}"
+            f"{(f'{routes:,}' if routes else '-'):>12}"
+            f"{(f'{valid:.2%}' if valid is not None else '-'):>11}"
+            f"{(f'{invalid:.2%}' if invalid is not None else '-'):>9}"
+            f"{(f'{leaks:,}' if leaks is not None else '-'):>9}"
+        )
+
+    if csv_out is not None:
+        csv_out.parent.mkdir(parents=True, exist_ok=True)
+        series.write_csv(csv_out)
+        typer.echo(f"\nwrote {csv_out}")

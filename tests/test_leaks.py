@@ -17,9 +17,14 @@ import pytest
 
 from hijax.detect.leaks import (
     Direction,
+    LeakObservation,
+    LeakType,
     Shape,
     classify_shape,
+    collect_findings,
+    detect_in_path,
     find_leakers,
+    leak_type,
     path_directions,
 )
 from hijax.ingest.meta import RelationshipLookup, SiblingLookup, parse_as2org_jsonl, parse_as_rel
@@ -169,3 +174,131 @@ def test_a_peer_to_peer_leak_is_caught() -> None:
     leakers = find_leakers(path, [Direction.FLAT, Direction.FLAT])
     assert len(leakers) == 1
     assert leakers[0].leaker_asn == 20
+
+
+# ---------------------------------------------------------------------------------------
+# RFC 7908 typing
+# ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("incoming", "outgoing", "expected"),
+    [
+        # Type 1: took it from one provider, gave it to another
+        (Direction.DOWN, Direction.UP, LeakType.HAIRPIN),
+        # Type 2: took it from one peer, gave it to another peer
+        (Direction.FLAT, Direction.FLAT, LeakType.LATERAL),
+        # Type 3: took it from a provider, gave it to a peer
+        (Direction.DOWN, Direction.FLAT, LeakType.PROVIDER_TO_PEER),
+        # Type 4: took it from a peer, gave it to a provider
+        (Direction.FLAT, Direction.UP, LeakType.PEER_TO_PROVIDER),
+    ],
+)
+def test_rfc_7908_types(incoming: Direction, outgoing: Direction, expected: LeakType) -> None:
+    """RFC 7908 Section 3 names these by where the route came from and where it went."""
+    assert leak_type(incoming, outgoing) == expected
+
+
+def test_legitimate_turns_have_no_type() -> None:
+    """Taking a route from a customer and passing it anywhere is what transit is."""
+    assert leak_type(Direction.UP, Direction.UP) is None
+    assert leak_type(Direction.UP, Direction.DOWN) is None
+    assert leak_type(Direction.DOWN, Direction.DOWN) is None
+
+
+# ---------------------------------------------------------------------------------------
+# Detecting in a path, and the precision guard
+# ---------------------------------------------------------------------------------------
+
+
+def test_detect_in_path_finds_the_leak(world: RelationshipLookup) -> None:
+    path = (AS6, AS5, AS4, AS3, AS2, AS7)
+    found = detect_in_path("rrc00", "10.0.0.1", "203.0.113.0/24", path, world)
+    assert len(found) == 1
+    assert found[0].leaker_asn == AS2
+    assert found[0].leak_type is LeakType.HAIRPIN  # from provider AS3 to provider AS7
+
+
+def test_detect_in_path_ignores_a_valid_path(world: RelationshipLookup) -> None:
+    path = (AS1, AS2, AS3, AS4, AS5, AS6)
+    assert detect_in_path("rrc00", "10.0.0.1", "203.0.113.0/24", path, world) == []
+
+
+def test_an_undetermined_path_yields_nothing(world: RelationshipLookup) -> None:
+    """Plan Section 10.4: a missing relationship next to the suspected turn means
+    undetermined, not a leak."""
+    path = (AS1, 999, AS2, AS7)
+    assert detect_in_path("rrc00", "10.0.0.1", "203.0.113.0/24", path, world) == []
+
+
+def observation(peer: str, prefix: str = "203.0.113.0/24", collector: str = "rrc00") -> object:
+    return LeakObservation(
+        collector=collector,
+        peer_ip=peer,
+        prefix=prefix,
+        leaker_asn=AS2,
+        leak_type=LeakType.HAIRPIN,
+        position=5,
+        path=(AS6, AS5, AS4, AS3, AS2, AS7),
+    )
+
+
+def test_one_peer_is_not_enough() -> None:
+    """A single vantage point seeing an odd path is as likely to be an error in the inferred
+    topology as a real event, so it is kept but marked uncorroborated."""
+    findings = collect_findings([observation("10.0.0.1")])  # type: ignore[list-item]
+    assert len(findings) == 1
+    assert findings[0].distinct_peers == 1
+    assert findings[0].corroborated is False
+
+
+def test_two_peers_corroborate() -> None:
+    findings = collect_findings(
+        [observation("10.0.0.1"), observation("10.0.0.2")]  # type: ignore[list-item]
+    )
+    assert findings[0].distinct_peers == 2
+    assert findings[0].corroborated is True
+
+
+def test_the_same_peer_twice_is_still_one_vantage_point() -> None:
+    """Seeing the same leak from the same peer twice adds no independent evidence."""
+    findings = collect_findings(
+        [observation("10.0.0.1"), observation("10.0.0.1")]  # type: ignore[list-item]
+    )
+    assert findings[0].observations == 2
+    assert findings[0].distinct_peers == 1
+    assert findings[0].corroborated is False
+
+
+def test_one_event_seen_widely_is_still_one_finding() -> None:
+    """Twenty peers seeing one leak is one event, not twenty."""
+    findings = collect_findings(
+        [observation(f"10.0.0.{n}") for n in range(1, 21)]  # type: ignore[list-item]
+    )
+    assert len(findings) == 1
+    assert findings[0].observations == 20
+    assert findings[0].distinct_peers == 20
+
+
+def test_different_prefixes_are_different_findings() -> None:
+    findings = collect_findings(
+        [  # type: ignore[list-item]
+            observation("10.0.0.1", "203.0.113.0/24"),
+            observation("10.0.0.2", "203.0.113.0/24"),
+            observation("10.0.0.1", "198.51.100.0/24"),
+        ]
+    )
+    assert len(findings) == 2
+    corroborated = [f for f in findings if f.corroborated]
+    assert len(corroborated) == 1
+    assert corroborated[0].prefix == "203.0.113.0/24"
+
+
+def test_collectors_are_counted_too() -> None:
+    findings = collect_findings(
+        [  # type: ignore[list-item]
+            observation("10.0.0.1", collector="rrc00"),
+            observation("10.0.0.2", collector="route-views2"),
+        ]
+    )
+    assert findings[0].distinct_collectors == 2

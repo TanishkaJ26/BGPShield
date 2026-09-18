@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.32",
     "tzdata>=2026.4",
     "py-radix>=1.1.0",
+    "matplotlib>=3.11.2",
 ]
 
 [project.scripts]

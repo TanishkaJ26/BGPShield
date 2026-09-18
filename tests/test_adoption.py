@@ -18,6 +18,7 @@ from hijax.analysis.adoption import (
     counts_by_country,
     counts_by_day,
     counts_by_ta,
+    longest_daily_streak,
     provider_list_sizes,
     to_json,
     write_json,
@@ -210,3 +211,67 @@ def test_aspa_coverage_with_no_publishers() -> None:
     result = aspa_coverage_by_position(routes, set())
     assert result["counts"]["any"] == 0
     assert result["shares"]["any"] == 0.0
+
+
+# --- The seven-consecutive-days acceptance check (plan Section 11, Phase 1) ---------------
+
+
+def test_an_empty_series_has_no_streak() -> None:
+    streak = longest_daily_streak([])
+    assert streak.length == 0
+    assert streak.first is None
+    assert not streak.meets(7)
+
+
+def test_weekly_snapshots_do_not_count_as_a_streak() -> None:
+    """The backfill stored snapshots seven days apart. Those are seven separate runs of one
+    day each, not a run of seven days, and the check must not confuse them."""
+    weekly = ["2026-08-05", "2026-08-12", "2026-08-19", "2026-08-26", "2026-09-02"]
+    streak = longest_daily_streak(weekly)
+    assert streak.length == 1
+    assert not streak.meets(7)
+
+
+def test_seven_adjacent_days_meet_the_criterion() -> None:
+    days = [f"2026-09-{day:02d}" for day in range(10, 17)]
+    streak = longest_daily_streak(days)
+    assert streak.length == 7
+    assert streak.first == date(2026, 9, 10)
+    assert streak.last == date(2026, 9, 16)
+    assert streak.meets(7)
+
+
+def test_a_gap_breaks_the_run_and_the_longest_wins() -> None:
+    """A missed day resets the count, which is the point: six days then a miss then three is
+    not a seven-day run."""
+    days = [
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+        # 2026-09-04 missed
+        "2026-09-05",
+        "2026-09-06",
+        "2026-09-07",
+        "2026-09-08",
+        "2026-09-09",
+    ]
+    streak = longest_daily_streak(days)
+    assert streak.length == 5
+    assert streak.first == date(2026, 9, 5)
+    assert not streak.meets(7)
+
+
+def test_duplicate_dates_do_not_inflate_the_streak() -> None:
+    """Re-running a day corrects it rather than extending the run."""
+    days = ["2026-09-01", "2026-09-01", "2026-09-02", "2026-09-02"]
+    assert longest_daily_streak(days).length == 2
+
+
+def test_the_streak_accepts_dates_as_well_as_strings() -> None:
+    days = [date(2026, 9, 1), date(2026, 9, 2), date(2026, 9, 3)]
+    assert longest_daily_streak(days).length == 3
+
+
+def test_unsorted_input_is_handled() -> None:
+    days = ["2026-09-03", "2026-09-01", "2026-09-02"]
+    assert longest_daily_streak(days).length == 3

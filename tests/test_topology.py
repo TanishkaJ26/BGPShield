@@ -201,3 +201,44 @@ def test_month_first_day_matches_caida_file_naming() -> None:
 
     assert month_first_day("2026-08") == "20260801"
     assert month_first_day("2023-1") == "20230101"
+
+
+AS2ORG_TEXT = """\
+# some header CAIDA writes
+# format:org_id|changed|org_name|country|source
+ORG-A|20120130|Example Networks|IN|APNIC
+ORG-B|20120130|Other Ltd|US|ARIN
+# format:aut|changed|aut_name|org_id|opaque_id|source
+64496|20120224|EX-1|ORG-A|opaque1|APNIC
+64497|20120224|EX-2|ORG-A|opaque2|APNIC
+64510|20120224|OTH-1|ORG-B|opaque3|ARIN
+"""
+
+
+def test_as2org_text_format_is_parsed() -> None:
+    """The JSON Lines form only exists for some releases, so older months have to be read
+    from the original pipe-delimited text (verified in Phase 0)."""
+    from hijax.ingest.meta import parse_as2org_text
+
+    frame = parse_as2org_text(AS2ORG_TEXT.splitlines())
+    assert frame.columns == ["asn", "org_id", "org_name", "org_country"]
+    assert frame.height == 3
+    row = frame.filter(frame["asn"] == 64496).to_dicts()[0]
+    assert row["org_id"] == "ORG-A"
+    assert row["org_name"] == "Example Networks"
+    assert row["org_country"] == "IN"
+
+
+def test_as2org_text_and_jsonl_agree() -> None:
+    """Both forms of the same data must produce the same table."""
+    from hijax.ingest.meta import parse_as2org_jsonl, parse_as2org_text
+
+    from_text = parse_as2org_text(AS2ORG_TEXT.splitlines()).sort("asn")
+    from_json = parse_as2org_jsonl(AS2ORG.splitlines()).sort("asn")
+    assert from_text.to_dicts() == from_json.to_dicts()
+
+
+def test_months_back_walks_backwards_over_a_year_boundary() -> None:
+    from hijax.ingest.meta import _months_back
+
+    assert _months_back("2019-02", 3) == ["2019-02", "2019-01", "2018-12", "2018-11"]

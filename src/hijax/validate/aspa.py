@@ -38,7 +38,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+
+from hijax.topology import RelSource
 
 #: The draft version this implements. Recorded here and in docs/references.md so a spec
 #: change cannot silently invalidate the results (plan Section 10.3).
@@ -289,16 +290,6 @@ def verify(
 # ---------------------------------------------------------------------------------------
 # Applying the procedures to route-collector data (plan Section 10.3)
 # ---------------------------------------------------------------------------------------
-
-
-class RelSource(Protocol):
-    """Anything that can answer "what is y to x?" as c2p, p2c, p2p or None.
-
-    Declared structurally so this module does not import the ingestion package.
-    ``hijax.ingest.meta.RelationshipLookup`` satisfies it.
-    """
-
-    def rel(self, x: int, y: int) -> str | None: ...
 
 
 def procedure_for(relationship: str | None) -> Procedure | None:

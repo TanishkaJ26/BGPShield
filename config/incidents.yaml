@@ -1,20 +1,200 @@
-# Curated incidents (plan Section 14). EVERY entry must be verified from primary reports
-# in Phase 5 before use. Nothing below is verified yet: dates, ASNs and prefixes are
-# deliberately left empty rather than filled from memory (rule 3: never invent data).
+# Curated incidents (plan Section 14).
+#
+# Every field below was taken from the primary post-mortem or analysis linked in `sources`,
+# and checked on 2026-09-18. Nothing here is from memory. Where a source does not state a
+# figure, the field is absent rather than guessed (Section 0, rule 3).
+#
+# ## Why `kind` matters
+#
+# These incidents are not all the same thing, and the difference decides which detector can
+# possibly see them:
+#
+#   route_leak     A network passed on a route it was not paid to carry. The path is
+#                  mis-shaped, so `hijax detect` and ASPA path verification apply.
+#   origin_hijack  A network announced address space it does not hold. The path may be
+#                  perfectly well shaped, so only origin validation applies, not ASPA.
+#   rpki_misuse    The routing was fine; the signed records were the attack. Neither
+#                  detector applies, and the incident is kept because it bears on the
+#                  project's subject even though it cannot be measured the same way.
+#
+# Recall can only be measured against the `route_leak` entries. Counting the others would
+# state a false expectation of the leak detector.
+#
+# Times are UTC. `window` is the analysis window the plan asks for in Section 8: the incident
+# bracketed by two hours on each side.
+
 incidents:
-  - id: 2019-06-verizon-leak
-    description: June 2019 route leak via a small ISP and a steel company's network, propagated by a large US transit provider (reported by Cloudflare)
-    verified: false
-  - id: 2021-04-vodafone-idea-leak
-    description: April 2021 route leak from Vodafone Idea (India), ~30k prefixes
-    verified: false
-  - id: 2018-04-route53-hijack
-    description: April 2018 hijack of Amazon Route 53 prefixes used to steal cryptocurrency (MyEtherWallet)
-    verified: false
-  - id: 2017-08-google-japan-leak
-    description: August 2017 Google route leak affecting Japan
-    verified: false
-  - id: 2024-01-orange-spain-rpki
-    description: January 2024 compromised RIPE NCC account used to publish bad RPKI objects (Orange Spain)
-    verified: false
-  # Plus 3–5 recent (2025–26) leaks from operator blogs or public BGP monitors: to be added in Phase 5.
+  - id: 2017-08-25-google-japan-leak
+    kind: route_leak
+    verified: true
+    description: >
+      Google leaked routes learned from peers and customers to Verizon, which propagated
+      them. Japanese networks were worst affected, NTT OCN most of all.
+    date: 2017-08-25
+    start_utc: "2017-08-25T03:22:00Z"
+    end_utc: "2017-08-25T04:00:00Z"
+    window_start_utc: "2017-08-25T01:22:00Z"
+    window_end_utc: "2017-08-25T06:00:00Z"
+    leaker_asn: 15169
+    propagated_by_asn: 701
+    most_affected_asn: 4713
+    prefixes_reported: 135000
+    example_path: "1103 286 701 15169 45629"
+    notes: >
+      The source describes Google as having "accidentally became a transit provider for
+      Jastel by announcing peer prefixes to Verizon". Duration varied by vantage point,
+      from about 11 to 38 minutes.
+    sources:
+      - https://www.bgpmon.net/bgp-leak-causing-internet-outages-in-japan-and-beyond/
+
+  - id: 2018-04-24-route53-hijack
+    kind: origin_hijack
+    verified: true
+    description: >
+      Amazon Route 53 DNS prefixes were announced by eNET, redirecting MyEtherWallet
+      users to an attacker-controlled DNS server.
+    date: 2018-04-24
+    start_utc: "2018-04-24T11:05:41Z"
+    end_utc: "2018-04-24T13:03:00Z"
+    window_start_utc: "2018-04-24T09:05:00Z"
+    window_end_utc: "2018-04-24T15:03:00Z"
+    hijacker_asn: 10297
+    victim_asn: 16509
+    propagated_to_asns: [8560, 6939]
+    prefixes:
+      - 205.251.192.0/24
+      - 205.251.193.0/24
+      - 205.251.195.0/24
+      - 205.251.197.0/24
+      - 205.251.199.0/24
+    notes: >
+      An origin hijack, not a leak. ASPA path verification would not detect this; origin
+      validation would, and the prefixes were not covered by ROAs at the time.
+    sources:
+      - https://www.internetsociety.org/blog/2018/04/amazons-route-53-bgp-hijack/
+      - https://manrs.org/2018/04/a-deeper-dive-into-the-amazon-route-53-bgp-hijack/
+
+  - id: 2019-06-24-verizon-dqe-leak
+    kind: route_leak
+    verified: true
+    description: >
+      A BGP optimizer at DQE Communications generated more-specific routes, which were
+      announced to its customer Allegheny Technologies and then to its other transit
+      provider Verizon, which propagated them worldwide.
+    date: 2019-06-24
+    start_utc: "2019-06-24T10:30:00Z"
+    window_start_utc: "2019-06-24T08:30:00Z"
+    window_end_utc: "2019-06-24T14:30:00Z"
+    leaker_asn: 33154
+    customer_asn: 396531
+    propagated_by_asn: 701
+    # The network that *caused* the leak and the network that *performed* it are different
+    # here, and the distinction matters for measuring a path-based detector. The faulty
+    # optimizer ran at DQE (AS33154), which is what the post-mortem blames. But the AS that
+    # turned the path around is Allegheny (AS396531): it took routes from its provider DQE
+    # and handed them to its other provider Verizon, which is the hairpin shape of RFC 7908
+    # type 1. A path-based detector can only ever name AS396531. Both are listed so the
+    # recall check accepts either.
+    expected_leaker_asns: [396531, 33154]
+    example_prefixes:
+      - 104.20.0.0/21
+      - 104.20.8.0/21
+    notes: >
+      Cloudflare's own 104.20.0.0/20 was split into two /21s by the optimizer. The source
+      gives a start time but not an end time. Cloudflare reported losing about 15 percent
+      of global traffic at the worst point.
+    sources:
+      - https://blog.cloudflare.com/how-verizon-and-a-bgp-optimizer-knocked-large-parts-of-the-internet-offline-today/
+
+  - id: 2021-04-17-vodafone-idea
+    kind: origin_hijack
+    verified: true
+    description: >
+      Vodafone Idea began originating tens of thousands of routes that do not belong to it,
+      which propagated through its upstream Bharti Airtel.
+    date: 2021-04-17
+    start_utc: "2021-04-17T13:48:00Z"
+    window_start_utc: "2021-04-17T11:48:00Z"
+    window_end_utc: "2021-04-17T17:48:00Z"
+    hijacker_asn: 55410
+    propagated_by_asn: 9498
+    prefixes_reported: 31000
+    notes: >
+      Widely reported as a leak, but the primary analysis says AS55410 "started originating
+      routes that don't belong to them", which is mis-origination. Origin validation applies;
+      ASPA path verification does not. About 80 percent of the affected prefixes had no ROA.
+      This is the largest Indian incident on the list and so matters for RQ4.
+    sources:
+      - https://blog.apnic.net/2021/04/26/a-major-bgp-route-leak-by-as55410/
+      - https://manrs.org/2021/04/a-major-bgp-hijack-by-as55410-vodafone-idea-ltd/
+
+  - id: 2024-01-03-orange-espana-rpki
+    kind: rpki_misuse
+    verified: true
+    description: >
+      An attacker used credentials found online to log into Orange España's RIPE NCC account
+      and publish ROAs naming the wrong origin AS, which made much of the operator's own
+      address space RPKI-invalid and therefore unroutable for networks that filter.
+    date: 2024-01-03
+    start_utc: "2024-01-03T09:28:00Z"
+    roas_published_utc: "2024-01-03T09:42:00Z"
+    traffic_impact_start_utc: "2024-01-03T14:20:00Z"
+    traffic_impact_end_utc: "2024-01-03T18:00:00Z"
+    victim_asn: 12479
+    wrongly_named_asn: 49581
+    notes: >
+      Neither a leak nor a path hijack. The routing was correct and the signed records were
+      the attack, which is why routes went from unknown to invalid. Kept on the list because
+      it bears directly on the project's subject, but excluded from the recall measurement:
+      no path-based detector could or should flag it. Routes originated by AS12479 fell from
+      about 9,200 to 7,400.
+    sources:
+      - https://www.kentik.com/blog/digging-into-the-orange-espana-hack/
+      - https://blog.benjojo.co.uk/post/rpki-signed-but-not-secure
+
+  - id: 2025-05-01-cox-leak
+    kind: route_leak
+    verified: true
+    description: >
+      Cox Communications announced several thousand additional routes in two bursts an hour
+      apart.
+    date: 2025-05-01
+    start_utc: "2025-05-01T16:45:00Z"
+    end_utc: "2025-05-01T17:55:00Z"
+    window_start_utc: "2025-05-01T14:45:00Z"
+    window_end_utc: "2025-05-01T19:55:00Z"
+    leaker_asn: 22773
+    routes_reported: 4651
+    stages:
+      - { start_utc: "2025-05-01T16:45:00Z", end_utc: "2025-05-01T16:50:00Z", routes: 3365 }
+      - { start_utc: "2025-05-01T17:50:00Z", end_utc: "2025-05-01T17:55:00Z", routes: 1141 }
+    notes: >
+      The source calls this a route leak, but also reports that 4,644 of the routes would be
+      RPKI-invalid, which points to mis-origination rather than a mis-shaped path. Both
+      detectors are run against it and the disagreement is reported rather than resolved by
+      assumption. The source names no upstream or downstream AS numbers.
+    sources:
+      - https://blog.apnic.net/2025/05/06/analysis-of-a-route-leak/
+
+  - id: 2026-01-22-cloudflare-miami-leak
+    kind: route_leak
+    verified: true
+    description: >
+      A routing policy change at a Cloudflare router in Miami became too permissive and
+      redistributed internally learned prefixes to all BGP neighbours at that location,
+      including transit providers and peers.
+    date: 2026-01-22
+    start_utc: "2026-01-22T20:25:00Z"
+    end_utc: "2026-01-22T20:50:00Z"
+    window_start_utc: "2026-01-22T18:25:00Z"
+    window_end_utc: "2026-01-22T22:50:00Z"
+    leaker_asn: 13335
+    propagated_to_asns: [3356]
+    example_victim_asn: 32934
+    notes: >
+      The most useful entry on this list for this project: recent enough that real ASPA
+      records existed, a precise window from the operator's own post-mortem, a named leaker,
+      and a genuine path leak rather than mis-origination. IPv6 prefixes were affected.
+      About 12Gbps was discarded at peak by the leaker's own filters.
+    sources:
+      - https://blog.cloudflare.com/route-leak-incident-january-22-2026/

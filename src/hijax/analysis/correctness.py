@@ -26,24 +26,12 @@ Section 11 asks for the largest cases to be reviewed by hand.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 import polars as pl
 
-from hijax.detect.leaks import RelSource, Shape, SiblingSource, classify_shape, path_directions
-
-
-class TopologySource(Protocol):
-    """A relationship graph that can also list a network's providers.
-
-    ``hijax.ingest.meta.RelationshipLookup`` satisfies this. Declared structurally so the
-    analysis package does not import the ingestion package.
-    """
-
-    def rel(self, x: int, y: int) -> str | None: ...
-
-    def providers(self, asn: int) -> set[int]: ...
-
+from hijax.detect.leaks import Shape, classify_shape, path_directions
+from hijax.topology import RelSource, SiblingSource, TopologySource
 
 COMPARISON_SCHEMA: dict[str, pl.DataType] = {
     "asn": pl.Int64(),

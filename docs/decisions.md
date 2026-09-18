@@ -2,6 +2,225 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-18 - Closing out the Phase 1 and Phase 2 acceptance misses
+
+### D-050: MRT dumps are downloaded and verified before parsing, never streamed from a URL
+Trying to bring the Phase 2 ingest under its one-hour bar by running the six collectors at
+once produced **silently truncated data**, which is the most serious kind of bug this project
+can have.
+
+Ingestion used to hand a URL straight to the MRT parser, which read the dump over HTTP inside
+the parser. When a connection dropped part way through - which is what six concurrent
+transfers on a saturated domestic link provoke - the iteration simply ended. Python saw an
+ordinary end of loop. The partial dump was written out as a finished table with a stats file
+beside it, and the command reported success.
+
+The measurements, same collector and same date:
+
+| rrc06, 2026-09-01 | rows | peers | prefixes | seconds |
+| --- | ---: | ---: | ---: | ---: |
+| `--jobs 6` (streamed from URL) | 733,116 | 8 | 145,946 | 21.0 |
+| `--jobs 1` (serial) | 6,751,923 | 21 | 1,355,629 | 180.7 |
+
+The parallel run captured **11% of the rows and 1 in 9 prefixes, and said it had finished**.
+A 42.9 MB dump cannot be fetched in 21 seconds on a link measured at 237 KB/s, and a full
+table is about 1.36 million prefixes, not 146 thousand. Both signals were there to be read;
+neither was checked.
+
+Ingestion now fetches each dump through `hijax.net.download` - which compares what arrived
+against `Content-Length`, retries a short read and raises rather than returning a truncated
+file - and parses the verified local copy. The earlier atomic-rename fix was necessary but
+addressed a different failure: it stopped a half-*written* Parquet file being mistaken for a
+complete one, and could say nothing about a half-*read* source.
+
+Three things fall out of this:
+
+* The bug was never parallelism. It was an unverified stream. With the byte count checked,
+  running collectors concurrently is safe again.
+* Dumps are now cached under `data/raw/mrt`, so re-runs cost nothing and the archives are
+  spared repeat traffic (plan Section 16). One day across six collectors is about 818 MB.
+* The sweep's download budget can now be measured exactly rather than inferred from
+  `Content-Length` headers alone.
+
+`tests/test_ingest_bgp.py` carries the regression: a short read must raise, and must leave
+nothing behind that a later run could mistake for a cached result.
+
+**Were the earlier ingests sound?** The truncation only appeared under concurrency, and
+earlier runs were serial, but "probably fine" is not a standard. There is a cheap check:
+elapsed time multiplied by the measured link rate should come out near the dump's size.
+The serially ingested route-views2 dump for 2023-10-11 read 104 MB in 538 seconds, implying
+193 KB/s against a link measured at 237 KB/s - consistent with a complete download. The
+truncated rrc06 run implied 2,043 KB/s, about nine times the link rate, which is the tell.
+`CollectorResult` now records `dump_bytes` so this check can be made from the stored stats
+rather than reconstructed. The main analysis date, 2026-09-01, has been re-ingested on the
+verified path.
+
+**The same hole existed on the update-file path**, which is the one Phase 5's incident recall
+reads. `_open_with_retry` retried on exceptions, but a stream that drops mid-file raises
+nothing - it just returns a short list of elements - so the retry never fired. That path now
+fetches and verifies the same way. The consequence for Phase 5 has to be stated rather than
+assumed: **the published recall numbers were produced with the vulnerable code path**, and a
+quietly half-read window is indistinguishable from an incident the detector could not see.
+The incident check should be re-run on the fixed path before those numbers are relied on.
+
+### D-051: The seven-day acceptance bar is checked, not remembered
+Plan Section 11 Phase 1 accepts only once the daily job "has run 7 days in a row". That is a
+property of the published series, so `hijax adoption` and the workflow both compute it from
+`web/public/data/aspa_adoption.json` and print it. Weekly backfill snapshots sit seven days
+apart and correctly score a streak of one, which is the case the unit tests pin down: against
+the real published file, 154 snapshots give a streak of 1.
+
+The workflow step never fails the build. A broken streak is information, not an error, and
+failing there would stop the day being published and make the next streak worse.
+
+## 2026-09-18 - Phase 6
+
+### D-042: Adoption share is measured against routed networks, not all registered ones
+A network that announces no routes cannot meaningfully publish an ASPA record about its
+providers, and the registries hold tens of thousands of allocations that never appear in a
+routing table. Including them would deflate every share for no reason and would make regions
+look different simply because they hold more dormant allocations. The denominator is therefore
+networks seen originating at least one route at the collectors, and the figure says so.
+
+### D-043: The APNIC region is selected by allocating registry, not by a list of countries
+Deciding which countries count as "the APNIC region" would be a geographic judgement this
+project has no basis to make. Selecting on the registry that allocated the AS number is a
+property already in the data and needs no judgement of its own.
+
+### D-044: Country of registration is stated everywhere it is used, not just once
+The country attached to an AS number is where it was registered, not where the network
+operates, and the difference matters for exactly the large multinational operators that
+dominate the Indian ranking. Rather than note it once in a document nobody reads next to the
+number, it is repeated in the module docstring, the CLI help text and the subtitle of the
+figure itself, so a number cannot travel without its caveat.
+
+### D-045: Operator names are resolved from the data, never from memory
+The first draft of the regional write-up named Bharti Airtel, Tata and Jio against their AS
+numbers from memory. They happened to be right, but that is the kind of claim CLAUDE.md rule 2
+exists to prevent, and a wrong operator name in a paper is worse than no name. All twelve names
+are now resolved from CAIDA's `as-org2info` file and the release used is cited. Doing so also
+surfaced something the numbers alone hid: the twelve AS numbers belong to about nine
+organisations, because Bharti Airtel holds two and Tata entities hold three.
+
+### D-046: Path coverage is reported next to adoption share, never on its own
+Adoption share answers how many networks publish; it does not answer what publishing buys. An
+ASPA record only does work when the network beside it on the path also has one. On real routes
+40.0% touch a publisher somewhere but only 5.4% contain an adjacent pair and 0.04% are covered
+end to end. Quoting 40% alone would badly overstate what is deployable today, so the two
+numbers are always presented together, including in the figure.
+
+### D-047: The longitudinal BGP series is quarterly and single-collector, and says so
+A weekly BGP sweep across the three years of ASPA data is about 150 table dumps, which is not
+proportionate to what the series is for. The sweep takes one table dump per quarter from
+route-views2, the vantage point Phases 4 and 5 already used, so the series is comparable with
+them. The RPKI half of the series is unaffected and remains weekly across all 155 snapshots.
+This is a sampling reduction, recorded as one, not a claim of full coverage.
+
+### D-048: The sweep enforces the download budget, and measures the right bytes
+CLAUDE.md rule 8 says to ask the owner before downloading more than 5 GB, so the sweep driver
+enforces that in code rather than relying on my arithmetic.
+
+The first version of the guard was wrong in a way worth recording. It watched `data/raw` grow,
+which is where this project caches its downloads, but bgpkit streams each routing-table dump
+straight from the archive URL and never writes it to disk at all. The guard would therefore
+have measured the CAIDA files and essentially nothing else, and could never have fired no
+matter how much was pulled over the network. It now asks each dump's URL for its
+`Content-Length` before ingesting and accumulates that, and a dump whose size cannot be read is
+charged 150 MB rather than treated as free.
+
+Measuring properly also showed the concern was smaller than assumed: a route-views2 dump runs
+104 MB in 2023 down to 76 MB in 2026, so the full thirteen-date sweep is about **1.17 GB**,
+well under the threshold. The guard stays because the estimate should not be the thing standing
+between the project and the rule.
+
+### D-049: `hijax report` draws only what the stored data supports
+A figure whose inputs are missing is named and skipped, and the command reports how many were
+skipped. The alternative, drawing a plausible-looking chart from whatever partial data is to
+hand, is the failure mode most likely to put a wrong number in the paper.
+
+## 2026-09-18 - Phase 5 completion
+
+### D-036: The incident list records what kind of event each one was
+Three of the seven curated incidents are not route leaks. An origin hijack can travel an
+ordinary path and an RPKI misuse incident had correct routing, so neither is something a
+path-based detector could find. Recall is computed only over the route leaks, and the others
+are reported as not applicable. Two entries also needed their framing corrected against their
+own sources, which describe mis-origination in events widely called leaks.
+
+### D-037: An incident can have several legitimate culprits
+The 2019 Verizon and DQE leak was first scored as a miss because the curated entry named
+AS33154, which is what the post-mortem blames, while the detector named AS396531, which is
+the network that actually turned the path around. Both are correct about different things,
+and only the second is visible in an AS_PATH. Incidents now carry `expected_leaker_asns` and
+the recall check accepts any of them.
+
+### D-038: An invisible leak is not a miss, and visibility is tested by rate
+The Cloudflare Miami leak was IPv6 and confined to one city; the collector examined recorded
+only IPv4 routes through Cloudflare and never saw the victim network at all. Calling that a
+detector failure would blame the software for where the collectors happen to be. The tool now
+compares the rate of routes relayed through the culprit during the incident with the rate
+either side, and reports `not_visible` without a clear elevation. A rate comparison rather
+than a threshold on the raw count matters: a network that legitimately carries a trickle of
+transit will always show a few relayed routes, and one of those must not be read as evidence
+that a leak was visible.
+
+### D-039: The organisation dataset needs a fallback in both format and date
+CAIDA's AS-to-organisation data was quarterly until 2024 and only became monthly afterwards,
+and the JSON Lines form exists only for some releases. Ingesting 2017-07 or 2019-05 failed on
+both counts. The ingester now reads the original pipe-delimited text as well, and walks back
+up to twelve months to the newest release on or before the month requested, which is what
+plan Section 5 specifies. The month actually used is reported rather than silently
+substituted.
+
+### D-040: One unreachable update file must not discard a whole incident window
+A single transient download failure aborted the 2017 incident after most of a 4.6-hour window
+had been fetched. Each file is now retried and then skipped if it still fails, and the result
+reports how many files were unreachable, so a window with holes is never mistaken for a
+complete one.
+
+### D-041: Recall of 100% is reported as two out of two
+The denominator is two, and a percentage invites being quoted without it. The write-up gives
+the count first and says plainly that the sample is too small to support a claim. Raising the
+denominator means using more collectors, which is Phase 6 work.
+
+## 2026-09-18 - Phase 5
+
+### D-031: The relationship protocols live in one module
+``RelSource`` had been defined twice and ``TopologySource`` once more, in three packages.
+They are now in `hijax/topology.py` and imported from there. Structural typing keeps the
+validators, detectors and counterfactual from importing the ingestion package just to say
+what shape of object they need.
+
+### D-032: A synthetic record for a network with no providers is an AS0 record
+The first version of the scenario builder skipped any network for which the topology inferred
+no providers. That silently excluded every tier-1, which are precisely the networks whose
+records are most informative: an AS0 record contradicts any claim that somebody sits above
+them. Under the old behaviour S3 failed to block the fixture leak at all. Networks absent from
+the topology altogether still get no record, because "no providers inferred" and "never heard
+of this network" are different statements and only the first justifies the assertion.
+
+### D-033: Precision is reported as 46%, and the dominant error mode is named
+A random sample of 50 corroborated candidates found that 54% name a very large transit
+network as the leaker, always as a peer-to-peer leak, and 26 of the 50 name a single network.
+The likeliest explanation is one or more transit links inferred as peering, which turns
+ordinary transit into an apparent leak across thousands of prefixes.
+
+The number is reported as it is. The alternative, quietly filtering large-cone leakers before
+counting, would have produced a much better-looking precision figure that hides the actual
+problem. The filter is proposed for Phase 6 as a hypothesis to be measured.
+
+### D-034: The hijack detector is written but not run
+It needs a 30-day baseline and only one day of routes exists. Plan Section 10.5 calls this
+detector context rather than a contribution, so the baseline is deferred to Phase 6, whose
+longitudinal run produces the days anyway. The module and its tests are complete.
+
+### D-035: Phase 5 is not complete, and recall is not reported
+Curating the incident list requires verifying each incident against primary post-mortems.
+Inventing or half-remembering dates, AS numbers and prefixes would corrupt every recall number
+computed from them, which rule 3 forbids. The stub in `config/incidents.yaml` still carries
+`verified: false` on every entry and no dates. Recall is therefore not reported at all rather
+than reported from an unverified list.
+
 ## 2026-09-18 - Phase 4
 
 ### D-027: Part of Section 10.4 was needed early
