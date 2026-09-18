@@ -1,0 +1,45 @@
+{
+ "generated_from": [
+  "incidents.json",
+  "longitudinal.json",
+  "networks.json",
+  "path_coverage.json",
+  "regional.json"
+ ],
+ "adoption": {
+  "global": {
+   "routed_networks": 86658,
+   "publishers": 2484,
+   "share_of_routed": 0.028664404902028665
+  },
+  "apnic region": {
+   "routed_networks": 20169,
+   "publishers": 202,
+   "share_of_routed": 0.010015370122465169
+  },
+  "registered IN": {
+   "routed_networks": 2931,
+   "publishers": 54,
+   "share_of_routed": 0.01842374616171955
+  }
+ },
+ "largest_transit_publishing": {
+  "country": "IN",
+  "examined": 20,
+  "publishing": 1
+ },
+ "path_coverage": {
+  "any": 0.3959901645596444,
+  "origin": 0.03032573482508995,
+  "neighbour": 0.08737625281728931,
+  "transit": 0.32450985721439773,
+  "adjacent_pair": 0.054074486191316974,
+  "all_hops": 0.0005063611106614977
+ },
+ "caveats": [
+  "Country means country of registration, not where a network operates.",
+  "Relationships and customer cones are INFERRED from CAIDA data, not ground truth.",
+  "Every number is limited by where the collectors are, and none of them is in India.",
+  "Adoption share and path coverage must be read together: a large share of routes touching a publisher does not mean those routes can be validated."
+ ]
+}

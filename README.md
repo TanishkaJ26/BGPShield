@@ -4,10 +4,44 @@ Hijax measures BGP route-security adoption and impact: RPKI Route Origin Validat
 Autonomous System Provider Authorization (ASPA). A reproducible, passive-measurement pipeline
 built for a master's application; full plan in [implementation.md](implementation.md).
 
-**Status:** Phase 0 (verify the ground) is complete. Phase 1 (RPKI ingestion and the adoption
-baseline) is in progress. See `docs/data-sources.md` for the verified URLs, formats and sample
-records, `docs/references.md` for the pinned specs, `docs/decisions.md` for the dated decisions,
-and `docs/methodology.md` for every reported number and the command that reproduces it.
+**Status:** Phases 0-7 are built. See `docs/data-sources.md` for the verified URLs, formats and
+sample records, `docs/references.md` for the pinned specs, `docs/decisions.md` for the dated
+decisions, and `docs/methodology.md` for every reported number and the command that reproduces
+it.
+
+Two acceptance criteria are still outstanding and are reported as misses rather than glossed:
+
+- **Phase 1** needs the daily job to have run seven days in a row. The streak is computed from
+  the published series by `hijax adoption` and by the workflow, but seven calendar days have to
+  elapse with the schedule enabled, which starts when the workflow is pushed.
+- **Phase 2** wants one day across all six collectors in under an hour. On verified-complete
+  data it takes **64.2 minutes** (memory, at 1.80 GB against an 8 GB bar, passes). The binding
+  constraint is the laptop's link: 818 MB has to arrive, at a measured 232-490 KB/s.
+
+## Reproducing the numbers
+
+```bash
+make install
+make reproduce-small
+```
+
+One date, one collector, compared against the counts committed in
+`tests/fixtures/reproduce_small.json`. Archive files for a past date do not change, so an
+honest rerun matches exactly. It takes about four minutes of compute, plus roughly 66 MB of
+downloads on a fresh clone, against a thirty-minute budget.
+
+## Headline findings
+
+- **2.87%** of routed networks publish an ASPA record. But only **5.4%** of routes contain two
+  *adjacent* publishers, which is the first point at which ASPA can judge a hop, and 0.04% are
+  covered end to end. Those two numbers have to be read together.
+- **None of India's twelve largest transit networks publishes an ASPA record.** The largest
+  Indian network that does has a customer cone of 85 and ranks 536th globally; the largest
+  Indian network overall ranks 20th. Adoption is happening where it does the least good.
+- Roughly **one in five** ROV-Invalid routes is better explained by an incomplete published
+  record than by anything wrong with the routing.
+- Leak-detection precision measured **46%**, and of seven well-documented incidents only two
+  could be judged at a single collector at all.
 
 ## Setup
 

@@ -37,6 +37,8 @@ from hijax.counterfactual import (
 )
 from hijax.detect.leaks import detect_in_path
 from hijax.detect.run import detect_day
+from hijax.export import BUDGET_BYTES as EXPORT_BUDGET_BYTES
+from hijax.export import build_all as build_export
 from hijax.incidents import Incident, IncidentResult, load_incidents, recall
 from hijax.incidents import Outcome as IncidentOutcome
 from hijax.ingest.bgp import ingest_many, ingest_updates
@@ -777,6 +779,42 @@ def incidents(
     else:
         typer.echo(f"  recall                          : {summary['recall']:.0%}")
 
+    # Persist the outcomes so the dashboard can show them without re-fetching the windows.
+    # Phase 7 publishes these numbers, and a web page should read a stored result rather
+    # than have someone retype it from a terminal.
+    stored = cfg.paths.processed / "incidents" / "results.json"
+    stored.parent.mkdir(parents=True, exist_ok=True)
+    by_id = {incident.id: incident for incident in curated}
+    stored.write_text(
+        json.dumps(
+            {
+                "collectors": chosen,
+                "summary": summary,
+                "incidents": [
+                    {
+                        "id": result.incident_id,
+                        "kind": str(result.kind),
+                        "outcome": str(result.outcome),
+                        "routes_examined": result.routes_examined,
+                        "paths_with_culprit": result.paths_with_culprit,
+                        "candidates_found": result.candidates_found,
+                        "culprit_flagged": result.culprit_flagged,
+                        "note": result.note,
+                        "title": getattr(by_id.get(result.incident_id), "title", ""),
+                        "culprit_asn": getattr(by_id.get(result.incident_id), "culprit_asn", None),
+                        "source": getattr(by_id.get(result.incident_id), "source", ""),
+                    }
+                    for result in results
+                ],
+            },
+            indent=1,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    typer.echo(f"\nwrote {stored}")
+
 
 def _run_incident(cfg: Config, incident: Incident, collectors: list[str]) -> IncidentResult:
     """Fetch one incident's window and look for its culprit in the detector's output."""
@@ -1117,3 +1155,43 @@ def longitudinal(
         csv_out.parent.mkdir(parents=True, exist_ok=True)
         series.write_csv(csv_out)
         typer.echo(f"\nwrote {csv_out}")
+
+
+@app.command("export")
+def export(
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+    destination: Annotated[
+        Path | None, typer.Option("--out", help="Where to write the JSON files.")
+    ] = None,
+) -> None:
+    """Write the dashboard JSON files from the stored tables.
+
+    Plain English: this turns the measurement tables into small JSON files the website reads.
+    It downloads nothing, so the same data always produces the same files, and each file
+    carries the caveats that belong with its numbers.
+
+    The plan allows under 5 MB for the whole set, because these files are committed and every
+    clone of the repository pays for them.
+    """
+    cfg = load_config(config_path)
+    result = build_export(cfg, destination=destination)
+
+    for path in result.written:
+        typer.echo(f"wrote {path}  ({path.stat().st_size / 1024:.0f} KB)")
+    for name, reason in result.skipped:
+        typer.echo(f"skipped {name}: {reason}")
+
+    if not result.written:
+        typer.echo("nothing could be exported; ingest and validate some data first")
+        raise typer.Exit(code=1)
+
+    budget_mb = EXPORT_BUDGET_BYTES / 1_000_000
+    typer.echo(
+        f"\n{len(result.written)} files, {result.total_bytes / 1_000_000:.2f} MB total "
+        f"(budget {budget_mb:.0f} MB)"
+    )
+    if not result.within_budget:
+        typer.echo("OVER BUDGET: trim the per-network table before committing this")
+        raise typer.Exit(code=1)

@@ -1,0 +1,179 @@
+{
+ "snapshot_date": "2026-09-01",
+ "metadata_month": "2026-08",
+ "country": "IN",
+ "regions": [
+  {
+   "region": "global",
+   "networks": 124732,
+   "routed_networks": 86658,
+   "aspa_publishers": 2822,
+   "publishers_that_route": 2484,
+   "share_of_routed": 0.028664404902028665
+  },
+  {
+   "region": "apnic region",
+   "networks": 31318,
+   "routed_networks": 20169,
+   "aspa_publishers": 221,
+   "publishers_that_route": 202,
+   "share_of_routed": 0.010015370122465169
+  },
+  {
+   "region": "registered IN",
+   "networks": 6271,
+   "routed_networks": 2931,
+   "aspa_publishers": 62,
+   "publishers_that_route": 54,
+   "share_of_routed": 0.01842374616171955
+  }
+ ],
+ "largest_transit": [
+  {
+   "asn": 9498,
+   "cone_size": 3965,
+   "rank": 20,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 4755,
+   "cone_size": 2477,
+   "rank": 35,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 9583,
+   "cone_size": 592,
+   "rank": 97,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 55836,
+   "cone_size": 445,
+   "rank": 130,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 55410,
+   "cone_size": 383,
+   "rank": 146,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 18229,
+   "cone_size": 308,
+   "rank": 189,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 45820,
+   "cone_size": 291,
+   "rank": 193,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 9730,
+   "cone_size": 190,
+   "rank": 264,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 17762,
+   "cone_size": 181,
+   "rank": 280,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 17439,
+   "cone_size": 152,
+   "rank": 331,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 45117,
+   "cone_size": 150,
+   "rank": 337,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 133296,
+   "cone_size": 111,
+   "rank": 426,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 17665,
+   "cone_size": 91,
+   "rank": 493,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 9885,
+   "cone_size": 85,
+   "rank": 536,
+   "publishes_aspa": true,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 132770,
+   "cone_size": 85,
+   "rank": 538,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 55824,
+   "cone_size": 83,
+   "rank": 549,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 9829,
+   "cone_size": 74,
+   "rank": 590,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 140641,
+   "cone_size": 65,
+   "rank": 673,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 137085,
+   "cone_size": 63,
+   "rank": 686,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 136334,
+   "cone_size": 57,
+   "rank": 733,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  }
+ ],
+ "notes": [
+  "Country is the country of REGISTRATION, not where the network operates.",
+  "None of this project's collectors is in India; the view is assembled from how Indian networks appear from Amsterdam, Oregon, Singapore, Tokyo and Sydney.",
+  "The APNIC region is selected by allocating registry, not by a list of countries, so it needs no geographic judgement of its own.",
+  "Shares are measured against networks seen ORIGINATING a route, not against every registered allocation."
+ ]
+}

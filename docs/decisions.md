@@ -2,6 +2,58 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-19 - Phase 7
+
+### D-052: The reproduction compares against a fixture, and updating it is a separate command
+Plan Section 11 Phase 7 accepts on an independent rerun matching committed numbers, so
+`make reproduce-small` checks eleven counts against `tests/fixtures/reproduce_small.json` and
+`make reproduce-fixture` is what records a new baseline. Keeping those apart is the whole
+point: a check that rewrites what it is comparing against would pass forever and mean nothing.
+rrc06 and 2026-09-01 were chosen because rrc06 is the smallest configured collector and
+archive files for a past date do not change.
+
+### D-053: The reproduction's headline time is compute, and says so
+The measured 3.6 minutes reused the cached archive files. A fresh clone also downloads about
+66 MB, which adds roughly five minutes at the link rates measured in Phase 2. Both numbers are
+reported rather than the flattering one, because "runs in 3.6 minutes" would be read as the
+clone-to-answer time and it is not.
+
+### D-054: The dashboard is capped, and says what it left out
+The per-network table would be about 86,000 rows at full size, which would break the 5 MB
+budget the plan sets for committed data. It keeps every ASPA publisher plus the 2,000 largest
+networks by cone, and the page states that rather than letting a reader infer that a network's
+absence means anything. Total payload is 1.14 MB.
+
+### D-055: Caveats are exported as data, not written into the page copy
+Every exported JSON file carries a `notes` field naming the limits that apply to its numbers,
+and the pages render those. Had the caveats lived only in the page templates, a future export
+consumed by anything else - a notebook, a talk, someone else's script - would arrive stripped
+of them. The two that matter most, country of registration rather than operation and the
+absence of any Indian collector, are exactly the ones a reader would otherwise assume the
+other way round.
+
+### D-056: A page with no data says so instead of showing zero
+If an export is missing, the page names the command that produces it. A zero on a dashboard
+reads as a measurement, and "no networks publish an ASPA record" is a very different claim
+from "this has not been exported yet". `build_all` likewise refuses to write `summary.json`
+when nothing fed into it; the unit test that caught that was written before the fix.
+
+### D-057: Next 16 rather than a patched 15, to audit clean
+Next.js 15.1.6 was flagged on install for CVE-2025-66478, and 15.5.25 still pulled a
+vulnerable `postcss` transitively. The build uses Next 16.3.5 with React 19.3.0 and reports no
+advisories. The real exposure was near zero, since `postcss` runs at build time over CSS in
+this repository and the output is a static site with no server, but shipping a known advisory
+is not a position worth defending in a project whose entire claim is carefulness.
+
+### D-058: Phase 5's recall numbers were re-verified properly, after a re-run that proved nothing
+D-050 flagged that the incident analysis had run on the truncation-prone code path. The first
+re-run reproduced the same answer, but it had reused the incident windows cached by the
+original run and so verified nothing. Moving that cache aside and re-fetching through the
+verified path reproduced both detections exactly - 2,740 sightings across 16,462 paths in
+8,920,488 announcements for 2017, and 11,186 across 11,291 in 12,471,644 for 2019. The
+published numbers stand. The lesson worth keeping is that a verification which reads from the
+cache written by the thing being verified is not a verification.
+
 ## 2026-09-18 - Closing out the Phase 1 and Phase 2 acceptance misses
 
 ### D-050: MRT dumps are downloaded and verified before parsing, never streamed from a URL

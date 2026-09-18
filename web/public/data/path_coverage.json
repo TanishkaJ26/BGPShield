@@ -1,0 +1,15 @@
+{
+ "snapshot_date": "2026-09-01",
+ "shares": {
+  "any": 0.3959901645596444,
+  "origin": 0.03032573482508995,
+  "neighbour": 0.08737625281728931,
+  "transit": 0.32450985721439773,
+  "adjacent_pair": 0.054074486191316974,
+  "all_hops": 0.0005063611106614977
+ },
+ "notes": [
+  "An ASPA record can only judge a hop when BOTH networks either side of it publish, so 'two publishers adjacent' is the first useful number here.",
+  "'anywhere on the path' overstates what is deployable today and should never be quoted on its own."
+ ]
+}

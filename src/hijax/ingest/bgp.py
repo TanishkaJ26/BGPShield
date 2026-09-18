@@ -160,6 +160,10 @@ def write_stats(cfg: Config, result: CollectorResult) -> Path:
         "peers": result.peers,
         "prefixes": result.prefixes,
         "seconds": round(result.seconds, 1),
+        # Recorded so the integrity check in D-050 can be made from the stored stats alone:
+        # elapsed time times the link rate should come out near the dump's size, and a
+        # truncated read shows up as an implied throughput far above what the link can do.
+        "dump_bytes": result.dump_bytes,
         "flags": {str(flag): count for flag, count in sorted(result.flags.items())},
         "flag_rates": {
             str(flag): round(count / result.rows, 6) if result.rows else 0.0

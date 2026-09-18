@@ -1,0 +1,115 @@
+/* One small stylesheet, no UI framework. The dashboard shows measurements and the caveats
+   that belong with them; it does not need a component library to do that. */
+
+:root {
+  --bg: #ffffff;
+  --fg: #16202b;
+  --muted: #5b6b7c;
+  --line: #dfe5ec;
+  --primary: #1f4e79;
+  --accent: #2e7d32;
+  --warn: #8b1a1a;
+  --caution-bg: #fdf6e3;
+  --caution-line: #d9c89a;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161c;
+    --fg: #e6edf3;
+    --muted: #9bb0c3;
+    --line: #26313d;
+    --primary: #7fb2e5;
+    --accent: #7bc47f;
+    --warn: #f0857d;
+    --caution-bg: #241f14;
+    --caution-line: #574a2c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+a { color: var(--primary); }
+
+.shell { max-width: 1040px; margin: 0 auto; padding: 0 16px 64px; }
+
+header.site {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+header.site .shell { padding-top: 20px; padding-bottom: 0; }
+header.site h1 { font-size: 20px; margin: 0 0 2px; }
+header.site p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+
+nav ul { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+nav a {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+}
+nav a:hover { border-bottom-color: var(--line); }
+
+h2 { font-size: 22px; margin: 32px 0 10px; }
+h3 { font-size: 17px; margin: 24px 0 8px; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+th { font-weight: 600; color: var(--muted); font-size: 13px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+
+.headline { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 8px; }
+.stat {
+  flex: 1 1 180px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.stat .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.stat .label { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* Caveats are part of the measurement, not decoration, so they get real weight. */
+.caution {
+  background: var(--caution-bg);
+  border: 1px solid var(--caution-line);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 18px 0;
+  font-size: 14px;
+}
+.caution strong { display: block; margin-bottom: 4px; }
+.caution ul { margin: 6px 0 0; padding-left: 20px; }
+.caution li { margin: 3px 0; }
+
+.missing {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.yes { color: var(--accent); font-weight: 600; }
+.no { color: var(--warn); font-weight: 600; }
+
+input[type='search'] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+}
+
+.meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.bar { height: 8px; border-radius: 4px; background: var(--primary); }

@@ -1,0 +1,149 @@
+"""Dashboard export tests (plan Sections 11 Phase 7, and 12).
+
+Hand-built tables written to a temporary tree. AS numbers come from the documentation range
+(RFC 5398). These check the promises the export makes: a missing input is named rather than
+silently producing an empty file, the caveats travel with the numbers, and the payload stays
+inside the size budget the plan sets.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date
+from pathlib import Path
+
+import polars as pl
+import pytest
+
+from hijax.config import Config, load_config
+from hijax.export import BUDGET_BYTES, build_all, export_networks, export_regional
+
+DAY = date(2026, 9, 1)
+
+
+@pytest.fixture
+def cfg(tmp_path: Path) -> Config:
+    base = load_config(Path("config/default.yaml"))
+    loaded = base.model_copy(
+        update={"paths": base.paths.model_copy(update={"processed": tmp_path / "processed"})}
+    )
+    loaded.paths.processed.mkdir(parents=True)
+    return loaded
+
+
+def _write(cfg: Config, name: str, leaf: str, frame: pl.DataFrame, collector: str | None) -> None:
+    base = cfg.paths.processed / name / f"snapshot_date={DAY:%Y-%m-%d}"
+    if collector is not None:
+        base = base / f"collector={collector}"
+    base.mkdir(parents=True, exist_ok=True)
+    frame.write_parquet(base / leaf)
+
+
+def _seed(cfg: Config) -> None:
+    """A tiny but complete world: four networks, two of which publish."""
+    _write(
+        cfg,
+        "rov_results",
+        "rov_results.parquet",
+        pl.DataFrame(
+            {
+                "origin_asn": [64496, 64496, 64497, 64498, 64499],
+                "rov_state": ["valid", "invalid", "valid", "not_found", "valid"],
+            }
+        ),
+        "rrc06",
+    )
+    _write(
+        cfg,
+        "aspas",
+        "aspas.parquet",
+        pl.DataFrame({"customer_asn": [64496, 64498], "provider_asns": [[64500], [64500, 64501]]}),
+        None,
+    )
+    _write(
+        cfg,
+        "routes",
+        "routes.parquet",
+        pl.DataFrame({"origin_asn": [64496, 64497, 64498, 64499], "as_path": [[64496]] * 4}),
+        "rrc06",
+    )
+    meta = cfg.paths.processed / "as_meta" / "month=2026-08"
+    meta.mkdir(parents=True)
+    pl.DataFrame(
+        {
+            "asn": [64496, 64497, 64498, 64499],
+            "country": ["IN", "IN", "US", "IN"],
+            "rir": ["apnic", "apnic", "arin", "apnic"],
+            "cone_size": [500, 120, 900, 30],
+            "rank": [10, 40, 5, 90],
+        }
+    ).write_parquet(meta / "as_meta.parquet")
+
+
+def test_an_empty_tree_writes_nothing_and_names_every_reason(cfg: Config, tmp_path: Path) -> None:
+    result = build_all(cfg, destination=tmp_path / "out")
+    assert result.written == []
+    assert result.skipped
+    for name, reason in result.skipped:
+        assert name and reason, f"skip entry {name!r} has no reason"
+
+
+def test_a_missing_input_is_reported_rather_than_exported_empty(
+    cfg: Config, tmp_path: Path
+) -> None:
+    """An empty file would read as 'no networks publish', which is a measurement, not a gap."""
+    with pytest.raises(FileNotFoundError):
+        export_networks(cfg, tmp_path / "networks.json")
+
+
+def test_networks_keeps_publishers_and_records_their_state(cfg: Config, tmp_path: Path) -> None:
+    _seed(cfg)
+    path = export_networks(cfg, tmp_path / "networks.json")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    rows = {row["asn"]: row for row in payload["rows"]}
+    assert rows[64496]["publishes_aspa"] is True
+    assert rows[64496]["providers_listed"] == 1
+    assert rows[64498]["providers_listed"] == 2
+    assert rows[64497]["publishes_aspa"] is False
+    assert rows[64496]["routes_valid"] == 1
+    assert rows[64496]["routes_invalid"] == 1
+    assert payload["notes"], "the table must carry its caveats"
+
+
+def test_regional_shares_are_measured_against_routed_networks(cfg: Config, tmp_path: Path) -> None:
+    _seed(cfg)
+    payload = json.loads(
+        export_regional(cfg, tmp_path / "regional.json").read_text(encoding="utf-8")
+    )
+    regions = {row["region"]: row for row in payload["regions"]}
+
+    # Three IN networks route; one of them (64496) publishes.
+    india = regions["registered IN"]
+    assert india["routed_networks"] == 3
+    assert india["publishers_that_route"] == 1
+    assert india["share_of_routed"] == pytest.approx(1 / 3)
+
+
+def test_the_country_caveat_is_present_in_the_regional_export(cfg: Config, tmp_path: Path) -> None:
+    """A number that travels without this caveat invites being read as where networks
+    operate, which is not what the registries record."""
+    _seed(cfg)
+    payload = json.loads(
+        export_regional(cfg, tmp_path / "regional.json").read_text(encoding="utf-8")
+    )
+    joined = " ".join(payload["notes"]).lower()
+    assert "registration" in joined
+    assert "collectors" in joined
+
+
+def test_a_seeded_world_exports_within_budget(cfg: Config, tmp_path: Path) -> None:
+    _seed(cfg)
+    result = build_all(cfg, destination=tmp_path / "out")
+    assert result.written
+    assert result.within_budget
+    assert result.total_bytes == sum(p.stat().st_size for p in result.written)
+
+
+def test_the_budget_is_the_five_megabytes_the_plan_allows() -> None:
+    assert BUDGET_BYTES == 5_000_000

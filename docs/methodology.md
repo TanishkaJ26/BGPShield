@@ -763,9 +763,13 @@ On the 2026-09-01 snapshot, with 86,699 networks seen originating routes:
 
 | Region | Routed networks | Publishing ASPA | Share |
 | --- | ---: | ---: | ---: |
-| Global | 86,547 | 2,479 | 2.86% |
-| APNIC region | 20,147 | 202 | 1.00% |
+| Global | 86,658 | 2,484 | 2.87% |
+| APNIC region | 20,169 | 202 | 1.00% |
 | Registered IN | 2,931 | 54 | 1.84% |
+
+*(Recomputed on 2026-09-19 against the re-ingested, verified-complete routes. The earlier
+figures - 86,547 routed and 2.86% global - came from the ingest that turned out to be short;
+the shares barely move, because truncation cost routes rather than origin networks.)*
 
 India is roughly **two-thirds of the global rate but nearly twice the APNIC regional rate**.
 The interesting comparison is the second one: India is not lagging its region, it is ahead of
@@ -800,6 +804,11 @@ Bharti Airtel holds AS9498 and AS9730, and Tata entities hold AS4755, AS45820 an
 
 **None of India's twelve largest transit networks publishes an ASPA record**, including two in
 the global top 40 by customer cone. The 54 Indian publishers are all small networks.
+
+The sharpest way to put it: the largest Indian network that *does* publish is AS9885, with a
+customer cone of **85** and a global rank of **536**. India's largest network, AS9498, has a
+cone of 3,965 and ranks **20th in the world**. The gap between those two lines is the whole
+finding.
 
 That is the opposite of the deployment order that would actually help. ASPA validation needs
 *adjacent* publishers to confirm a hop, so a record published by a large transit network covers
@@ -926,11 +935,38 @@ One day across the six collectors is 818 MB:
 | rrc06 | 42.9 MB |
 | **Total** | **817.6 MB** |
 
-At the serial rate that is **58.7 minutes of pure transfer**, before a single route is parsed,
-which is what the original 60.2-minute run was made of: the laptop's connection plus about
-ninety seconds of everything else. At the sustained six-way rate the same bytes take about
-**28 minutes**. rrc00 alone is 427 MB, more than half the total, so it sets the floor on any
-run that fetches it.
+At the serial rate that is **58.7 minutes of pure transfer** before a single route is parsed.
+rrc00 alone is 427 MB, more than half the total, so it sets the floor on any run that fetches
+it.
+
+### The measured result, on data known to be complete
+
+```bash
+powershell -File scripts/phase2_timed_run.ps1 -Day 2026-09-01 -Jobs 6
+```
+
+| | Result | Bar | |
+| --- | ---: | --- | --- |
+| Wall clock | **64.2 min** | under 60 min | **MISS** |
+| Peak RAM | **1.80 GB** | under 8 GB | **PASS** |
+| Rows ingested | **134,127,599** | | |
+
+**The earlier 60.2-minute figure was measured on incomplete data.** The same six collectors on
+the same date now yield 134.1 million rows against the 99.4 million originally reported - the
+first run was missing about a quarter of the routes, on the unverified code path. So the
+original result was never a twelve-second miss on a complete ingest; it was a faster run over
+less data. Every per-collector table now holds a plausible full table, between 1.12 and 1.41
+million prefixes, where the truncated parallel attempt held 29 to 146 thousand.
+
+The bar is still missed, and by more than before, for an honest reason: verifying the bytes
+costs time. Downloading each dump and then parsing it means the two no longer overlap within a
+collector, where streaming had them running together. That is the trade this project should
+make - plan Section 0 puts correctness above features, and a four-minute overrun is a far
+smaller problem than a quarter of the routes going missing without anyone noticing.
+
+The binding constraint remains the laptop's link, which was measured between 232 KB/s serial
+and 490 KB/s across six connections, against 818 MB that has to arrive before the work can
+finish.
 
 ### The bug that came out of it
 
@@ -982,3 +1018,91 @@ spacing correctly counts as a streak of one, which is the case the unit tests pi
 repository was re-initialised on 2026-09-18 and nothing has been pushed, so the workflow has
 never fired. That clock starts when it is pushed, and nothing here should be read as a
 substitute for it.
+
+
+## Phase 7 (2026-09-19): dashboard and reproducibility
+
+Phase 7 accepts when somebody else can clone the repository, run `make reproduce-small` for one
+date and one collector in under thirty minutes, and get the same numbers as the committed
+fixtures. That is the criterion the whole project rests on, because every figure in the
+write-up is worth exactly what an independent rerun says it is.
+
+### The reproduction
+
+```bash
+make install
+make reproduce-small
+```
+
+It ingests one RPKI snapshot, one month of topology data and one collector's routing table for
+2026-09-01, validates and detects over them, and compares eleven counts against
+`tests/fixtures/reproduce_small.json`. rrc06 was chosen because it is the smallest configured
+collector at about 43 MB, and archive files for a past date never change, so the answer is
+stable.
+
+| | Reproduced | Fixture |
+| --- | ---: | ---: |
+| routes | 6,751,923 | 6,751,923 |
+| peers | 21 | 21 |
+| prefixes | 1,355,629 | 1,355,629 |
+| ROV valid | 4,812,513 | 4,812,513 |
+| ROV invalid | 3,376 | 3,376 |
+| ROV not found | 1,936,034 | 1,936,034 |
+| ASPA valid | 1,150,451 | 1,150,451 |
+| ASPA invalid | 17,865 | 17,865 |
+| ASPA unknown | 5,583,607 | 5,583,607 |
+| VRPs | 996,912 | 996,912 |
+| ASPA records | 2,822 | 2,822 |
+
+All eleven match, in **3.6 minutes** against a thirty-minute budget. The derived tables were
+deleted before the run, so the routing table was re-parsed and everything downstream
+recomputed from scratch.
+
+**What that run does not prove.** It reused the cached archive files, so it measured the
+compute and not the download. A genuine fresh clone also fetches about 66 MB, which at the
+link rates measured in Phase 2 adds roughly five minutes. Recording the qualification matters
+more than the headline: the number above is the compute time.
+
+Recording a new baseline is a separate, explicit command (`make reproduce-fixture`). A
+comparison that quietly rewrites what it compares against proves nothing.
+
+### The dashboard
+
+`hijax export` writes the small JSON files the site reads, from tables already on disk. The
+whole payload is **1.14 MB** against the 5 MB the plan allows, which matters because these
+files are committed and every clone pays for them. The per-network table is the only large one
+and is capped: it keeps every ASPA publisher plus the 2,000 largest networks by customer cone,
+and says so on the page rather than implying it is the whole routing table.
+
+Every exported file carries a `notes` field naming the limits that apply to its numbers, and
+the pages render those rather than tucking them away. This is deliberate. A number on a web
+page is the one most likely to be quoted without its caveats, and the two that matter most
+here - country of *registration* rather than operation, and the fact that no collector sits in
+India - are exactly the ones a reader would otherwise assume the other way.
+
+The site is a static Next.js export with five pages (Overview, Networks, Incidents, Region,
+Methodology), served from `web/out/` with no server at all. A page whose data file is missing
+says so and names the command that produces it; it never shows a zero, because a zero reads as
+a measurement.
+
+Next.js 15.1.6 was flagged on install for CVE-2025-66478, and the version that fixed it still
+pulled a vulnerable `postcss` transitively. The build now uses Next 16.3.5 with React 19.3.0
+and audits clean. The practical exposure was near zero - `postcss` runs at build time over CSS
+we wrote ourselves, and the output is static - but shipping a dependency with a known advisory
+is not worth defending.
+
+### Verifying Phase 5 after the truncation bug
+
+D-050 recorded that the incident analysis had run on the vulnerable code path and that its
+recall numbers should be re-run before being relied on. The first re-run reproduced the same
+answer, but it had silently reused the incident windows cached by the *original* run, so it
+verified nothing. Moving that cache aside and re-fetching everything through the verified path
+gives the real comparison:
+
+| Incident | Announcements | Distinct paths | Sightings naming the culprit |
+| --- | ---: | ---: | ---: |
+| 2017-08-25 Google/Japan | 8,920,488 | 16,462 | 2,740 |
+| 2019-06-24 Verizon/DQE | 12,471,644 | 11,291 | 11,186 |
+
+Both match the Phase 5 figures exactly. **The published recall numbers stand.** The truncation
+only ever bit under concurrency, and the incident windows had been fetched serially.

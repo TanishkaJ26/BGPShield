@@ -1,0 +1,115 @@
+{
+ "collectors": [
+  "route-views2"
+ ],
+ "summary": {
+  "curated_incidents": 7,
+  "route_leaks": 4,
+  "judged": 2,
+  "detected": 2,
+  "missed": 0,
+  "recall": 1.0,
+  "no_data": 0,
+  "culprit_absent": 0,
+  "not_visible": 2,
+  "not_applicable": 3
+ },
+ "incidents": [
+  {
+   "id": "2017-08-25-google-japan-leak",
+   "kind": "route_leak",
+   "outcome": "detected",
+   "routes_examined": 8920488,
+   "paths_with_culprit": 630476,
+   "candidates_found": 3137,
+   "culprit_flagged": 2740,
+   "note": "",
+   "title": "",
+   "culprit_asn": 15169,
+   "source": ""
+  },
+  {
+   "id": "2018-04-24-route53-hijack",
+   "kind": "origin_hijack",
+   "outcome": "not_applicable",
+   "routes_examined": 0,
+   "paths_with_culprit": 0,
+   "candidates_found": 0,
+   "culprit_flagged": 0,
+   "note": "kind is not route_leak",
+   "title": "",
+   "culprit_asn": 10297,
+   "source": ""
+  },
+  {
+   "id": "2019-06-24-verizon-dqe-leak",
+   "kind": "route_leak",
+   "outcome": "detected",
+   "routes_examined": 12471644,
+   "paths_with_culprit": 474144,
+   "candidates_found": 11407,
+   "culprit_flagged": 11186,
+   "note": "",
+   "title": "",
+   "culprit_asn": 33154,
+   "source": ""
+  },
+  {
+   "id": "2021-04-17-vodafone-idea",
+   "kind": "origin_hijack",
+   "outcome": "not_applicable",
+   "routes_examined": 0,
+   "paths_with_culprit": 0,
+   "candidates_found": 0,
+   "culprit_flagged": 0,
+   "note": "kind is not route_leak",
+   "title": "",
+   "culprit_asn": 55410,
+   "source": ""
+  },
+  {
+   "id": "2024-01-03-orange-espana-rpki",
+   "kind": "rpki_misuse",
+   "outcome": "not_applicable",
+   "routes_examined": 0,
+   "paths_with_culprit": 0,
+   "candidates_found": 0,
+   "culprit_flagged": 0,
+   "note": "kind is not route_leak",
+   "title": "",
+   "culprit_asn": null,
+   "source": ""
+  },
+  {
+   "id": "2025-05-01-cox-leak",
+   "kind": "route_leak",
+   "outcome": "not_visible",
+   "routes_examined": 3667769,
+   "paths_with_culprit": 17349,
+   "candidates_found": 41,
+   "culprit_flagged": 0,
+   "note": "no elevation in routes relayed through the culprit during the incident",
+   "title": "",
+   "culprit_asn": 22773,
+   "source": ""
+  },
+  {
+   "id": "2026-01-22-cloudflare-miami-leak",
+   "kind": "route_leak",
+   "outcome": "not_visible",
+   "routes_examined": 3543035,
+   "paths_with_culprit": 5980,
+   "candidates_found": 158,
+   "culprit_flagged": 0,
+   "note": "no elevation in routes relayed through the culprit during the incident",
+   "title": "",
+   "culprit_asn": 13335,
+   "source": ""
+  }
+ ],
+ "notes": [
+  "Only route leaks can be judged this way. An origin hijack travels an ordinary-looking path and in an RPKI misuse incident the routing was correct, so neither is something a path-based detector could find; both are reported as not applicable, never as misses.",
+  "'not visible' means the collectors used never saw the leak, which is a statement about where the vantage points are and not about the detector.",
+  "Recall here rests on a denominator of two. It is a count, not an estimate."
+ ]
+}

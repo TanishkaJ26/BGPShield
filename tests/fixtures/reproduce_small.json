@@ -1,0 +1,26 @@
+{
+ "aspa_invalid": 17865,
+ "aspa_records": 2822,
+ "aspa_unknown": 5583607,
+ "aspa_valid": 1150451,
+ "collector": "rrc06",
+ "date": "2026-09-01",
+ "dump_bytes": 0,
+ "flag_rates": {
+  "as_set": 0.000153,
+  "loop": 0.000334,
+  "peer_mismatch": 0.021632,
+  "private_asn": 2.2e-05,
+  "reserved_asn": 2e-06
+ },
+ "leak_findings": 305856,
+ "leak_leakers": 1136,
+ "metadata_month": "2026-08",
+ "peers": 21,
+ "prefixes": 1355629,
+ "routes": 6751923,
+ "rov_invalid": 3376,
+ "rov_not_found": 1936034,
+ "rov_valid": 4812513,
+ "vrps": 996912
+}
