@@ -2,6 +2,39 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-18 - Phase 4
+
+### D-027: Part of Section 10.4 was needed early
+Phase 4 asks how many ASPA-Invalid routes are "not leaks according to 10.4", but plan Section
+11 puts Section 10.4 in Phase 5. The direction classification and the valley-free test are
+therefore implemented now in `detect/leaks.py`, because Phase 4 cannot be done without them.
+
+What is deliberately **not** implemented yet, and stays in Phase 5: the RFC 7908 leak typing,
+the requirement that a candidate be seen from two or more collector peers, and matching
+against the curated incident list. Nothing produced in Phase 4 should be read as a confirmed
+leak, and the module says so.
+
+### D-028: A correct AS0 record is corroboration, not missing evidence
+The first version of the completeness summary counted every publisher with no inferred
+providers as "cannot judge". That conflated two opposite situations. A network that published
+an AS0 record, meaning "I have no providers", and for which the inference also sees none, has
+been *confirmed* by the inference. Only a network claiming providers that the inference has
+never seen is genuinely unjudgeable. Splitting them moved 58 tier-1 records from the
+unjudgeable column into the corroborated one, and it matters because those same networks
+account for 76% of all contradicted routes.
+
+### D-029: The false-positive rate is estimated two ways on purpose
+Path shape and record quality are different evidence, and they give 17.7% and 20.1%. Both are
+reported. They are not fully independent, since both use the same inferred relationship
+graph, and the write-up says so rather than presenting the agreement as stronger than it is.
+
+### D-030: Disagreements in the two directions are never summed
+A record that omits an inferred provider can cause a legitimate route to be discarded. A
+record that lists a provider the inference has not seen usually just means CAIDA never
+observed that link, because it only sees what appears in public routing data. The first is a
+risk and the second mostly is not, so they are counted separately and never added together
+into one "inaccurate records" figure.
+
 ## 2026-09-18 - Phase 3
 
 ### D-022: The draft's worked examples are the conformance suite

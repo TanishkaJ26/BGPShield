@@ -379,3 +379,130 @@ contradiction.
 6,751,923 routes validated in 95.8 seconds on the laptop. Both validators are memoised on
 their inputs, which matters because collector tables repeat heavily: those routes reduce to
 1,362,911 distinct prefix-and-origin pairs and 787,130 distinct paths.
+
+## Phase 4 (2026-09-18): RQ2, are published ASPA records complete?
+
+### Command
+
+```bash
+uv run hijax correctness --date 2026-09-01 --collectors rrc06
+```
+
+### Why this matters
+
+An ASPA record only helps if it lists every one of a network's providers. Miss one, and every
+legitimate route arriving through that provider looks like a forgery. A network filtering on
+ASPA would discard it. So an incomplete record is not a harmless gap in coverage, it is a
+self-inflicted outage waiting for somebody to switch on enforcement.
+
+### The caveat attached to every number below
+
+CAIDA's relationships are *inferred* from public routing data, not declared, and carry errors
+of their own (plan Section 15). A disagreement between a published record and an inference
+means one of the two is wrong, not that the record is. That is why the table below counts
+disagreements in both directions and why the largest cases were reviewed by hand.
+
+### Completeness of published records, 2026-09-01
+
+| | Publishers | Share |
+| --- | --- | --- |
+| Total publishing an ASPA record | 2,822 | |
+| Agree with the inferred topology exactly | 1,020 | 36.1% |
+| **Miss at least one inferred provider** | **369** | **13.1%** |
+| List a provider the inference has not seen | 1,680 | 59.5% |
+| No providers inferred, so unjudgeable | 624 | 22.1% |
+
+Of the 60 records that declare "I have no providers at all", 58 are corroborated by the
+inference seeing none either, and 2 are contradicted.
+
+The 59.5% listing something the inference misses is not the alarming number it looks like.
+CAIDA only sees a link if it appears in public routing data, so a provider used for backup or
+for a small part of a network's traffic is routinely invisible to it. The direction that
+causes harm is the other one, and that is 13.1%.
+
+### How many Invalid routes are actually false positives
+
+Two independent methods, which is the point.
+
+**Method one, by path shape.** Take every ASPA-Invalid route and ask the valley-free rule,
+which knows nothing about ASPA, whether the path is mis-shaped at all. Collector rrc06,
+17,865 Invalid routes:
+
+| Classification | Routes | Share |
+| --- | --- | --- |
+| Mis-shaped path, ASPA corroborated | 13,562 | 75.9% |
+| **Well-shaped path, likely false positive** | **2,924** | **16.4%** |
+| Shape undetermined, a relationship is missing | 349 | 2.0% |
+| Invalid only because the path carries an AS_SET | 1,030 | 5.8% |
+
+Among the routes the shape test can actually judge, **17.7% look legitimate**.
+
+**Method two, by record quality.** Take the 16,835 Invalid routes that name a contradicted
+hop and ask whether the contradicting network's own record looks incomplete:
+
+| The contradicting record | Routes | Share |
+| --- | --- | --- |
+| A correct "I have no providers" record, corroborated | 12,832 | 76.2% |
+| **Misses at least one inferred provider** | **3,387** | **20.1%** |
+| Agrees with the inference | 511 | 3.0% |
+| Unjudgeable | 105 | 0.6% |
+
+The two methods are built on different evidence and land on 17.7% and 20.1%. Treat the
+false-positive risk at this vantage point as roughly one Invalid route in five, and note that
+both estimates lean on the same inferred topology, so they are not fully independent.
+
+### Manual review of the networks behind the most Invalid routes
+
+Plan Section 11 asks for the top 20 to be reviewed by hand, reading PeeringDB and registry
+data only. Names and network types below come from the PeeringDB API, read-only. Three
+distinct patterns emerged, and they call for completely different conclusions.
+
+**Pattern 1: correct records, suspicious paths.** This is the largest group by far, 76.2% of
+contradicted routes.
+
+| AS | Name | Type | Published | Inferred providers | Invalid routes |
+| --- | --- | --- | --- | --- | --- |
+| 174 | Cogent Communications | NSP, global | AS0 | 0 | 7,845 |
+| 1299 | Arelion (Twelve99) | NSP, global | AS0 | 0 | 2,684 |
+| 3257 | GTT Communications | NSP, global | AS0 | 0 | 1,684 |
+| 7018 | AT&T | NSP, North America | AS0 | 0 | 280 |
+| 3320 | Deutsche Telekom | NSP, global | AS0 | 0 | 259 |
+
+Every one is a global transit network that buys transit from nobody, and CAIDA agrees: Cogent
+has 6,514 customers, 83 peers and zero providers. Their records are correct. The paths are
+what is odd, each claiming some network sits above one of them. The networks so claimed are
+their peers, such as AS2497, AS2914 and AS3356, so these paths cross between peers somewhere
+they should not. **These Invalid verdicts are evidence about routing, not about record
+quality**, and they belong to RQ3 rather than RQ2.
+
+**Pattern 2: genuinely incomplete records.** Smaller in count, and the real RQ2 finding.
+
+| AS | Name | Published | CAIDA infers | Missing | Invalid routes |
+| --- | --- | --- | --- | --- | --- |
+| 20764 | RASCOM | 1 provider | 5 | 6939, 12389, 20485, 49558 | 919 |
+| 29386 | Syrian Telecom | 4 providers | 7 | 6774, 6866, 8697, 9121 | 773 |
+
+RASCOM is a transit network with 257 customers and 1,945 peers that published exactly one of
+its five apparent upstreams. AS29386 is the case Phase 3 found by sampling three Invalid
+routes at random: its path was perfectly well shaped and it was flagged anyway.
+
+**Pattern 3: the inference is the likelier suspect.** Worth separating so the table is not
+read as a list of operator errors.
+
+AS61625 published 11 providers while CAIDA infers 10, of which 8 are not among the 11. The
+missing ones sit in the Brazilian 26xxxx range and this is a Brazilian cable and DSL provider,
+so a plausible reading is that CAIDA has misclassified some customer links. AS14789 published
+220 providers against 208 inferred, missing 5, which is a very well maintained record for a
+network of that shape rather than a negligent one.
+
+### What this means for the paper
+
+The headline for RQ2 is that 13.1% of publishers appear to have an incomplete record, and
+that roughly one Invalid route in five at this vantage point is a likely false positive
+caused by such a record rather than by anything wrong with the routing. Both numbers rest on
+inferred relationships and should be repeated across more collectors and dates in Phase 6
+before they go in a paper.
+
+The manual review also produced a finding that was not anticipated: the large majority of
+Invalid routes are contradicted by *correct* records at tier-1 networks, not by bad ones.
+Reporting the Invalid share on its own would badly misattribute the cause.

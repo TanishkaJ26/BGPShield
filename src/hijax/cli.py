@@ -17,6 +17,12 @@ import typer
 from hijax import __version__
 from hijax.analysis.adoption import build as build_adoption
 from hijax.analysis.adoption import update_json as update_adoption_json
+from hijax.analysis.correctness import (
+    blame_by_as,
+    compare_providers,
+    completeness_summary,
+    estimate_false_positives,
+)
 from hijax.config import DEFAULT_CONFIG_PATH, load_config
 from hijax.ingest.bgp import ingest_many
 from hijax.ingest.meta import (
@@ -379,3 +385,119 @@ def _previous_month(day: date) -> str:
     if month == 0:
         year, month = year - 1, 12
     return f"{year:04d}-{month:02d}"
+
+
+@app.command("correctness")
+def correctness(
+    day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
+    collectors: Annotated[
+        str | None,
+        typer.Option("--collectors", help="Comma-separated. Defaults to the configured set."),
+    ] = None,
+    month: Annotated[
+        str | None,
+        typer.Option("--month", help="Relationship month. Defaults to the month before."),
+    ] = None,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+    top: Annotated[int, typer.Option("--top", help="How many networks to rank.")] = 20,
+) -> None:
+    """RQ2: how complete are published ASPA records, and what do the gaps cost?
+
+    Plain English: an ASPA record has to list every one of a network's providers. If one is
+    missing, legitimate routes arriving that way look like forgeries. This compares each
+    published record with the providers inferred from public routing data, and counts the
+    Invalid routes whose paths are actually well formed.
+
+    The inferred topology has errors of its own, so a disagreement is evidence that one side
+    is wrong, not proof that the record is.
+    """
+    cfg = load_config(config_path)
+    target = _parse_day(day, "--date")
+    chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
+    rel_month = month or _previous_month(target)
+
+    rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
+    aspas_path = (
+        cfg.paths.processed / "aspas" / f"snapshot_date={target:%Y-%m-%d}" / "aspas.parquet"
+    )
+    for needed in (rel_path, aspas_path):
+        if not needed.exists():
+            typer.echo(f"missing {needed}")
+            raise typer.Exit(code=1)
+
+    relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
+    aspa_records = pl.read_parquet(aspas_path)
+
+    comparison = compare_providers(aspa_records, relationships)
+    out = cfg.paths.processed / "aspa_completeness" / f"snapshot_date={target:%Y-%m-%d}"
+    out.mkdir(parents=True, exist_ok=True)
+    comparison.write_parquet(out / "aspa_completeness.parquet")
+
+    summary = completeness_summary(comparison)
+    typer.echo(f"ASPA publishers on {target}: {summary['publishers']:,}")
+    typer.echo(f"  agree with the inferred topology exactly : {summary['agree_exactly']:>6,}")
+    typer.echo(
+        f"  missing at least one inferred provider   : {summary['missing_at_least_one']:>6,}"
+        f"  ({summary['missing_share']:.1%})"
+    )
+    typer.echo(f"  list a provider the inference misses     : {summary['extra_at_least_one']:>6,}")
+    typer.echo(f"  AS0 records ('I have no providers')      : {summary['as0_records']:>6,}")
+    typer.echo(f"    of those, contradicted by inference    : {summary['as0_contradicted']:>6,}")
+    typer.echo(f"    of those, corroborated by inference    : {summary['as0_corroborated']:>6,}")
+    typer.echo(f"  no providers inferred, so unjudgeable     : {summary['cannot_judge']:>6,}")
+
+    typer.echo("\nlikely incomplete records, by how many providers are missing:")
+    for row in comparison.filter(pl.col("n_missing") > 0).head(top).iter_rows(named=True):
+        kind = "AS0" if row["is_as0"] else f"{row['n_published']} listed"
+        typer.echo(
+            f"  AS{row['asn']:<9} {kind:<10} missing {row['n_missing']:>3}: {row['missing'][:8]}"
+        )
+
+    for collector in chosen:
+        results = (
+            cfg.paths.processed
+            / "aspa_results"
+            / f"snapshot_date={target:%Y-%m-%d}"
+            / (f"collector={collector}")
+            / "aspa_results.parquet"
+        )
+        routes = (
+            cfg.paths.processed
+            / "routes"
+            / f"snapshot_date={target:%Y-%m-%d}"
+            / (f"collector={collector}")
+            / "routes.parquet"
+        )
+        if not results.exists() or not routes.exists():
+            continue
+        invalid = (
+            pl.read_parquet(results)
+            .filter(pl.col("aspa_state") == "invalid")
+            .join(
+                pl.read_parquet(routes, columns=["peer_ip", "prefix", "as_path", "has_as_set"]),
+                on=["peer_ip", "prefix"],
+                how="inner",
+            )
+        )
+        if invalid.height == 0:
+            continue
+        estimate = estimate_false_positives(invalid, relationships)
+        typer.echo(f"\n{collector}: {estimate.invalid_routes:,} ASPA-Invalid routes")
+        typer.echo(f"  mis-shaped path, ASPA corroborated : {estimate.valley:>8,}")
+        typer.echo(f"  well-shaped path, likely false pos.: {estimate.valley_free:>8,}")
+        typer.echo(f"  shape undetermined                 : {estimate.undetermined:>8,}")
+        typer.echo(f"  Invalid only due to an AS_SET      : {estimate.as_set:>8,}")
+        typer.echo(
+            f"  likely false positive share (of judged routes): "
+            f"{estimate.likely_false_positive_share:.1%}"
+        )
+
+        typer.echo(f"\n  networks whose records contradict the most routes, top {top}:")
+        for row in blame_by_as(invalid, top=top).iter_rows(named=True):
+            typer.echo(
+                f"    AS{row['asn']:<9} {row['invalid_routes']:>7,} routes  "
+                f"{row['distinct_prefixes']:>7,} prefixes  "
+                f"claimed providers: {row['claimed_providers'][:6]}"
+            )
