@@ -1,0 +1,3 @@
+# raw, interim and processed data are never committed (implementation.md Section 0, rule 5)
+*
+!.gitignore

@@ -1,0 +1,20 @@
+# Curated incidents (plan Section 14). EVERY entry must be verified from primary reports
+# in Phase 5 before use. Nothing below is verified yet: dates, ASNs and prefixes are
+# deliberately left empty rather than filled from memory (rule 3: never invent data).
+incidents:
+  - id: 2019-06-verizon-leak
+    description: June 2019 route leak via a small ISP and a steel company's network, propagated by a large US transit provider (reported by Cloudflare)
+    verified: false
+  - id: 2021-04-vodafone-idea-leak
+    description: April 2021 route leak from Vodafone Idea (India), ~30k prefixes
+    verified: false
+  - id: 2018-04-route53-hijack
+    description: April 2018 hijack of Amazon Route 53 prefixes used to steal cryptocurrency (MyEtherWallet)
+    verified: false
+  - id: 2017-08-google-japan-leak
+    description: August 2017 Google route leak affecting Japan
+    verified: false
+  - id: 2024-01-orange-spain-rpki
+    description: January 2024 compromised RIPE NCC account used to publish bad RPKI objects (Orange Spain)
+    verified: false
+  # Plus 3–5 recent (2025–26) leaks from operator blogs or public BGP monitors: to be added in Phase 5.

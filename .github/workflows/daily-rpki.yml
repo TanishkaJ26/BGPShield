@@ -1,0 +1,83 @@
+name: Daily RPKI snapshot
+
+# Plan Section 11, Phase 1: fetch one RPKI snapshot a day and keep the small ASPA
+# adoption aggregate in the repository. Heavy BGP jobs run on the owner's laptop; only
+# this small job runs on GitHub Actions (plan Section 6).
+#
+# The Parquet tables live under data/ and are never committed, so a run only ever holds
+# the day it just ingested. `hijax adoption --export` therefore merges that day into the
+# published series rather than overwriting it.
+
+on:
+  schedule:
+    # 06:20 UTC. The RIPE NCC archive publishes each day's validator output at roughly
+    # 04:00-05:00 UTC (observed in Phase 0), so this leaves a margin.
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Snapshot date to ingest (YYYY-MM-DD). Defaults to yesterday UTC."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-rpki
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install (locked)
+        run: uv sync --locked
+
+      - name: Choose the snapshot date
+        id: day
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            echo "date=${{ inputs.date }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "date=$(date -u -d yesterday +%F)" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The five RIR delegated-stats files are ~44 MB and change slowly, so fetch them
+      # once a week rather than on every run. Being a polite archive user is a project
+      # rule (plan Section 16).
+      - name: Work out the current ISO week
+        id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache RIR delegated-stats files
+        uses: actions/cache@v4
+        with:
+          path: data/raw/delegated
+          key: delegated-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: |
+            delegated-${{ runner.os }}-
+
+      - name: Ingest the snapshot
+        run: uv run hijax ingest-rpki --date "${{ steps.day.outputs.date }}"
+
+      - name: Update the adoption aggregate
+        run: uv run hijax adoption --export web/public/data/aspa_adoption.json
+
+      - name: Commit the aggregate if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- web/public/data; then
+            echo "no change to publish"
+          else
+            git add web/public/data
+            git commit -m "chore(data): ASPA adoption through ${{ steps.day.outputs.date }}"
+            git push
+          fi

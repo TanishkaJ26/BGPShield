@@ -1,0 +1,46 @@
+# Hijax default configuration (plan Section 7). Values here were verified in Phase 0;
+# see docs/data-sources.md. Paths are relative to the repo root.
+
+project:
+  name: hijax
+  user_agent: "hijax/0.1 (research; tanishkajangir26@gmail.com)"
+
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  figures: figures
+  web_data: web/public/data
+
+# Historical RPKI: RIPE NCC archive, Routinator JSON, one file per trust anchor per day.
+rpki:
+  archive_base: https://ftp.ripe.net/rpki
+  trust_anchors: [afrinic, apnic, arin, lacnic, ripencc]
+  file: output.json.xz
+  earliest_aspa_date: 2023-10-11      # verified in Phase 0 (RIPE TA, 1 record)
+  # Cross-check source (rpki-client full snapshots, ~586 MB each in 2026-09):
+  rpkiviews_mirror: https://josephine.sobornost.net/rpkidata
+
+# BGP collectors (provisional short-list, docs/decisions.md D-004).
+bgp:
+  broker_api: https://api.bgpkit.com/v3/broker
+  collectors: [rrc00, route-views2, rrc23, route-views.sg, rrc06, route-views.sydney]
+  rib_time_utc: "00:00"
+
+meta:
+  caida_as_rel_base: https://publicdata.caida.org/datasets/as-relationships/serial-2
+  caida_as_rel_pattern: "{yyyymmdd}.as-rel2.txt.bz2"     # monthly, day 01
+  caida_as2org_base: https://publicdata.caida.org/datasets/as-organizations
+  caida_as2org_pattern: "{yyyymmdd}.as-org2info.jsonl.gz"  # monthly, day 01
+  asrank_graphql: https://api.asrank.caida.org/v2/graphql
+  delegated:
+    afrinic: https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest
+    apnic: https://ftp.apnic.net/stats/apnic/delegated-apnic-extended-latest
+    arin: https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest
+    lacnic: https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-extended-latest
+    ripencc: https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest
+
+scenarios:
+  publication: [S0, S1, S2, S3]
+  top_n: {S1: 100, S2: 1000}
+  filtering: [F-all, F-top20, F-top100]
