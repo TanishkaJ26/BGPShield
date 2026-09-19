@@ -19,9 +19,9 @@ type IncidentRow = {
   candidates_found: number;
   culprit_flagged: number;
   note: string;
-  title: string;
+  description: string;
   culprit_asn: number | null;
-  source: string;
+  sources: string[];
 };
 type IncidentsPayload = {
   collectors: string[];
@@ -29,6 +29,21 @@ type IncidentsPayload = {
   incidents: IncidentRow[];
   notes: string[];
 };
+
+/** Initialisms that appear in the curated ids and should not be title-cased. */
+const UPPER = new Set(['dqe', 'rpki', 'bgp', 'dns', 'aws', 'isp']);
+
+/** "2017-08-25-google-japan-leak" -> "Google Japan Leak". The curated entries carry a
+ *  description rather than a title, and the date is shown separately. */
+function nameFrom(id: string): string {
+  return id
+    .replace(/^\d{4}-\d{2}-\d{2}-/, '')
+    .split('-')
+    .map((word) =>
+      UPPER.has(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(' ');
+}
 
 const OUTCOMES: Record<string, { label: string; tone: string; meaning: string }> = {
   detected: { label: 'detected', tone: 'detected', meaning: 'The detector named the culprit inside the incident window.' },
@@ -122,13 +137,16 @@ export default async function Incidents() {
                   <article className="tl-row" data-cursor="link">
                     <div className="tl-date">{date}</div>
                     <div>
-                      <h3 className="tl-title">{incident.title || incident.id}</h3>
+                      <h3 className="tl-title">{nameFrom(incident.id)}</h3>
                       <div className="tl-body">
                         <span className="mono" style={{ fontSize: '0.74rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
                           {incident.kind.replace(/_/g, ' ')}
                           {incident.culprit_asn ? ` · AS${incident.culprit_asn}` : ''}
                         </span>
-                        <p style={{ margin: '0.5rem 0 0' }}>{outcome.meaning}</p>
+                        {incident.description ? (
+                          <p style={{ margin: '0.5rem 0 0' }}>{incident.description}</p>
+                        ) : null}
+                        <p className="meta" style={{ margin: '0.5rem 0 0' }}>{outcome.meaning}</p>
                         {incident.routes_examined ? (
                           <dl className="tl-kv">
                             <div><b>{thousands(incident.routes_examined)}</b> announcements examined</div>
@@ -138,10 +156,20 @@ export default async function Incidents() {
                           </dl>
                         ) : null}
                         {incident.note ? <p className="meta" style={{ marginTop: '0.6rem' }}>{incident.note}</p> : null}
-                        {incident.source ? (
-                          <a href={incident.source} rel="noreferrer noopener" target="_blank" className="mono" style={{ display: 'inline-block', marginTop: '0.7rem', fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', borderBottom: '1px solid currentColor' }}>
-                            source ↗
-                          </a>
+                        {incident.sources?.length ? (
+                          <p className="mono" style={{ margin: '0.7rem 0 0', display: 'flex', flexWrap: 'wrap', gap: '0.9rem' }}>
+                            {incident.sources.map((href, n) => (
+                              <a
+                                key={href}
+                                href={href}
+                                rel="noreferrer noopener"
+                                target="_blank"
+                                style={{ fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', borderBottom: '1px solid currentColor' }}
+                              >
+                                source {incident.sources.length > 1 ? n + 1 : ''} ↗
+                              </a>
+                            ))}
+                          </p>
                         ) : null}
                       </div>
                     </div>

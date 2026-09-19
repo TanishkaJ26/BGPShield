@@ -13,7 +13,8 @@ export default function NotFound() {
           No route to <em>this</em> page.
         </h1>
         <p className="lede" style={{ marginTop: '1.4rem' }}>
-          Nothing is published at this address. The measurements live on the pages below.
+          Nothing is published at this address. Every measurement is reachable from the
+          navigation above.
         </p>
         <p style={{ marginTop: '1.6rem' }}>
           <Link

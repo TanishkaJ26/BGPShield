@@ -13,7 +13,7 @@ import time
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import polars as pl
 import typer
@@ -129,6 +129,11 @@ def run() -> None:
         typer.echo(f"error: {exc}", err=True)
         raise SystemExit(2) from exc
     except DownloadError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise SystemExit(1) from exc
+    except FileNotFoundError as exc:
+        # A missing input is something the operator fixes by running an earlier command, and
+        # every one of these carries a message saying which. A stack trace buries that.
         typer.echo(f"error: {exc}", err=True)
         raise SystemExit(1) from exc
 
@@ -348,10 +353,10 @@ def ingest_bgp(
             failures += 1
             typer.echo(f"{collector:<20} FAILED: {result.error}")
             continue
+        totals["rows"] += result.rows
         if result.skipped:
             typer.echo(f"{collector:<20} rows={result.rows:>9}  cached")
             continue
-        totals["rows"] += result.rows
         totals["seconds"] += int(result.seconds)
         rates = "  ".join(
             f"{flag}={result.flags.get(flag, 0) / result.rows:.2%}"
@@ -363,7 +368,10 @@ def ingest_bgp(
             f"prefixes={result.prefixes:>8}  {result.seconds:>6.1f}s  {rates}"
         )
 
-    typer.echo(f"total rows: {totals['rows']}  wall clock: {totals['seconds']}s")
+    # Cached collectors count towards the row total - reporting 0 beside six "cached"
+    # lines reads as a failure. The seconds are summed per collector, so under --jobs > 1
+    # they are compute time rather than elapsed time, and are labelled as such.
+    typer.echo(f"total rows: {totals['rows']}  ingest time: {totals['seconds']}s")
     if failures:
         typer.echo(f"{failures} of {len(chosen)} collectors failed")
         raise typer.Exit(code=1)
@@ -398,6 +406,8 @@ def ingest_meta(
     typer.echo(f"  relationships : {result.relationships:>9,}")
     typer.echo(f"  organisations : {result.organisations:>9,}")
     note = " (skipped)" if result.skipped_asrank else ""
+    if result.truncated_asrank:
+        note = " (TRUNCATED by --asrank-pages, not cached)"
     typer.echo(f"  ranked ASes   : {result.ranked:>9,}{note}")
     typer.echo(f"  as_meta rows  : {result.as_meta_rows:>9,}")
 
@@ -536,7 +546,7 @@ def correctness(
     typer.echo(f"  AS0 records ('I have no providers')      : {summary['as0_records']:>6,}")
     typer.echo(f"    of those, contradicted by inference    : {summary['as0_contradicted']:>6,}")
     typer.echo(f"    of those, corroborated by inference    : {summary['as0_corroborated']:>6,}")
-    typer.echo(f"  no providers inferred, so unjudgeable     : {summary['cannot_judge']:>6,}")
+    typer.echo(f"  no providers inferred, so unjudgeable    : {summary['cannot_judge']:>6,}")
 
     typer.echo("\nlikely incomplete records, by how many providers are missing:")
     for row in comparison.filter(pl.col("n_missing") > 0).head(top).iter_rows(named=True):
@@ -686,10 +696,14 @@ def counterfactual(
     relationships = RelationshipLookup.from_frame(pl.read_parquet(rel_path))
     as_meta = pl.read_parquet(meta_path)
     aspa_frame = pl.read_parquet(aspas_path)
-    real = {
-        int(c): frozenset(int(p) for p in provs)
-        for c, provs in zip(aspa_frame["customer_asn"], aspa_frame["provider_asns"], strict=True)
-    }
+    # One customer can hold a record under more than one trust anchor, and the effective
+    # provider set is the union over all of them (draft-ietf-sidrops-aspa-verification-28
+    # Section 5.3). A plain dict comprehension would keep only the last row and could turn a
+    # legitimate provider into an apparent leak.
+    real: dict[int, frozenset[int]] = {}
+    for c, provs in zip(aspa_frame["customer_asn"], aspa_frame["provider_asns"], strict=True):
+        customer = int(c)
+        real[customer] = real.get(customer, frozenset()) | frozenset(int(p) for p in provs)
 
     leaks = pl.read_parquet(leaks_path)
     if corroborated_only:
@@ -819,6 +833,18 @@ def incidents(
     # Persist the outcomes so the dashboard can show them without re-fetching the windows.
     # Phase 7 publishes these numbers, and a web page should read a stored result rather
     # than have someone retype it from a terminal.
+    #
+    # A single-incident run is a debugging aid, not a result. Overwriting the shared file
+    # with it would publish a recall computed over a denominator of one - the same shape of
+    # mistake as caching a truncated AS Rank walk (D-050, D-067), and it happened during
+    # testing. Such a run reports to the terminal and writes nothing.
+    if incident_id:
+        typer.echo(
+            "ran one incident, so the shared results file was left alone; "
+            "run without --id to refresh it"
+        )
+        return
+
     stored = cfg.paths.processed / "incidents" / "results.json"
     stored.parent.mkdir(parents=True, exist_ok=True)
     by_id = {incident.id: incident for incident in curated}
@@ -837,9 +863,18 @@ def incidents(
                         "candidates_found": result.candidates_found,
                         "culprit_flagged": result.culprit_flagged,
                         "note": result.note,
-                        "title": getattr(by_id.get(result.incident_id), "title", ""),
-                        "culprit_asn": getattr(by_id.get(result.incident_id), "culprit_asn", None),
-                        "source": getattr(by_id.get(result.incident_id), "source", ""),
+                        # These come off the curated entry by their real field names. They
+                        # used to be read as "title" and "source", neither of which exists
+                        # on Incident, so `getattr`'s default quietly published an empty
+                        # string: the site promised a primary post-mortem for every entry
+                        # and linked to none.
+                        "description": _incident_field(
+                            by_id, result.incident_id, "description", ""
+                        ),
+                        "culprit_asn": _incident_field(
+                            by_id, result.incident_id, "culprit_asn", None
+                        ),
+                        "sources": list(_incident_field(by_id, result.incident_id, "sources", ())),
                     }
                     for result in results
                 ],
@@ -851,6 +886,19 @@ def incidents(
         encoding="utf-8",
     )
     typer.echo(f"\nwrote {stored}")
+
+
+def _incident_field(by_id: dict[str, Incident], incident_id: str, field: str, default: Any) -> Any:
+    """Read one field off a curated entry, refusing to invent a value for a typo.
+
+    ``getattr(obj, name, default)`` cannot tell "this entry has no source" from "this field
+    name does not exist", and the second is how the site came to show no citations at all.
+    A name that is not part of ``Incident`` is a programming error and raises.
+    """
+    if not hasattr(Incident, "__dataclass_fields__") or field not in Incident.__dataclass_fields__:
+        raise AttributeError(f"Incident has no field {field!r}")
+    incident = by_id.get(incident_id)
+    return default if incident is None else getattr(incident, field)
 
 
 def _run_incident(cfg: Config, incident: Incident, collectors: list[str]) -> IncidentResult:
@@ -1203,6 +1251,8 @@ def export(
         typer.echo(f"wrote {path}  ({path.stat().st_size / 1024:.0f} KB)")
     for name, reason in result.skipped:
         typer.echo(f"skipped {name}: {reason}")
+    for path in result.stale:
+        typer.echo(f"STALE {path.name}: left from an earlier run and still published")
 
     if not result.written:
         typer.echo("nothing could be exported; ingest and validate some data first")

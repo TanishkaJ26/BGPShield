@@ -86,7 +86,14 @@ jobs:
           esac
           echo "day=$day" >> "$GITHUB_OUTPUT"
           echo "collector=$collector" >> "$GITHUB_OUTPUT"
-          echo "month=$(date -u -d "$day -1 month" +%Y-%m)" >> "$GITHUB_OUTPUT"
+          # "$day -1 month" overflows: 2026-03-31 minus a month is February 31, which GNU
+          # date normalises to March 3, so the job would ask for the SAME month's topology
+          # and then fail in `validate`, which correctly wants the month before. Stepping
+          # back one day from the first of the month cannot overflow. This matches
+          # `bgpshield.tables.previous_month`, and plan Section 10.4 requires the month
+          # before so the topology is not inferred from the routes being judged.
+          first_of_month="$(date -u -d "$day" +%Y-%m-01)"
+          echo "month=$(date -u -d "$first_of_month -1 day" +%Y-%m)" >> "$GITHUB_OUTPUT"
           echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
           # Where Pages will serve the site, for the sitemap and social previews. A custom
           # domain can override it with a repository variable named SITE_URL.

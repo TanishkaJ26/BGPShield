@@ -57,6 +57,9 @@ class ExportResult:
 
     written: list[Path] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
+    stale: list[Path] = field(default_factory=list)
+    """Files a skipped exporter left behind from an earlier run. They describe some other
+    date, and the site will serve them beside freshly written ones, so they are reported."""
     total_bytes: int = 0
 
     @property
@@ -389,6 +392,11 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ExportResult:
             path = func(cfg, out / filename)
         except (FileNotFoundError, ValueError) as exc:
             result.skipped.append((name, str(exc)))
+            # A skip leaves whatever the last run wrote. `export_date` exists so that every
+            # file describes one day, and a leftover from an earlier date defeats that while
+            # looking entirely normal on the site, so say so rather than let it pass.
+            if (out / filename).exists():
+                result.stale.append(out / filename)
             continue
         written[name] = path
         result.written.append(path)
@@ -405,7 +413,9 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ExportResult:
 
     # The adoption series is written by `bgpshield adoption --export` and counts against the same
     # budget, so include whatever is already published there.
+    # Stale files are published too, so they count against the budget.
     total = sum(p.stat().st_size for p in result.written)
+    total += sum(p.stat().st_size for p in result.stale)
     existing = out / "aspa_adoption.json"
     if existing.exists():
         total += existing.stat().st_size

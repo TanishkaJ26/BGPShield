@@ -34,6 +34,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from statistics import median
 
 import polars as pl
 
@@ -250,7 +251,7 @@ def summarise(outcomes: Iterable[Outcome]) -> pl.DataFrame:
             {
                 **row,
                 "blocked_share": blocked / routes if routes else 0.0,
-                "median_blocking_position": (sorted(seen)[len(seen) // 2] if seen else None),
+                "median_blocking_position": (median(seen) if seen else None),
             }
         )
     return pl.DataFrame(out).sort(["publication", "filtering"])

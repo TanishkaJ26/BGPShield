@@ -60,9 +60,16 @@ export default async function Networks() {
                 <li key={note}>{note}</li>
               ))}
               <li>
-                <strong>Invalid</strong> does not mean an attack. Roughly one in five Invalid routes
-                is better explained by an incomplete published record than by anything wrong with
-                the routing.
+                The <strong>Valid</strong>, <strong>Invalid</strong> and{' '}
+                <strong>Not found</strong> counts are <strong>origin validation</strong> against
+                published ROAs, not ASPA. An Invalid here means the origin is not the one the
+                address holder authorised for that prefix.
+              </li>
+              <li>
+                <strong>Invalid does not mean an attack.</strong> A stale or too-specific ROA
+                produces one just as readily. Separately, on the ASPA side, roughly one Invalid
+                route in five is better explained by an incomplete published provider list than
+                by anything wrong with the routing.
               </li>
             </ul>
           </div>

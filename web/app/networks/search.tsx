@@ -143,10 +143,23 @@ export default function NetworkSearch({
       </table>
       </div>
 
-      {shown < matches.length ? (
+      {/*
+        Before anything is fetched the page holds only the first {@link PAGE_SIZE} rows, so
+        `shown < matches.length` was false and the button never rendered: the table said
+        "showing the largest 100 of 4,334" and gave no way to see row 101 without typing a
+        search. Comparing against the real total instead, and loading on click, makes the
+        table browsable while keeping the fetch lazy.
+      */}
+      {shown < (allRows ? matches.length : total) ? (
         <p style={{ marginTop: 16 }}>
-          <button data-cursor="link" onClick={() => setShown((n) => n + PAGE_SIZE)}>
-            Show {Math.min(PAGE_SIZE, matches.length - shown)} more
+          <button
+            data-cursor="link"
+            onClick={() => {
+              void ensureLoaded();
+              setShown((n) => n + PAGE_SIZE);
+            }}
+          >
+            Show {allRows ? Math.min(PAGE_SIZE, matches.length - shown) : PAGE_SIZE} more
           </button>
         </p>
       ) : null}

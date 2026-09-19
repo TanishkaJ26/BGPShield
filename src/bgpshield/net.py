@@ -103,7 +103,14 @@ def download(
                 except BaseException:
                     tmp.unlink(missing_ok=True)
                     raise
-                expected = _content_length(response.headers.get("Content-Length"))
+                # Content-Length counts the bytes on the wire. When the server applies a
+                # transfer encoding, `iter_content` hands back the decoded body, which is
+                # legitimately longer, so the comparison would reject a perfectly good file
+                # on every attempt and turn a working source into a hard failure.
+                encoded = response.headers.get("Content-Encoding")
+                expected = (
+                    None if encoded else _content_length(response.headers.get("Content-Length"))
+                )
                 if expected is not None and written != expected:
                     tmp.unlink(missing_ok=True)
                     last = f"short read: {written} of {expected} bytes"

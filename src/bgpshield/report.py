@@ -30,6 +30,7 @@ from bgpshield.analysis.regional import compare_regions  # noqa: E402
 from bgpshield.config import Config  # noqa: E402
 from bgpshield.tables import (  # noqa: E402
     latest_snapshot,
+    nearest_snapshot_on_or_before,
     previous_month,
     read_partition,
     table_root,
@@ -347,6 +348,15 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
 
     latest_routes = latest_snapshot(table_root(cfg, "routes"))
     routes = _load_routes(cfg, latest_routes) if latest_routes is not None else None
+    # RPKI snapshots are weekly while routing tables are daily, so an exact match is the
+    # exception rather than the rule. Pick the newest ASPA snapshot at or before the routing
+    # date, which is what `bgpshield export` does. The figures and the dashboard JSON have to
+    # describe the same population or they will quietly disagree about the same day.
+    aspa_day = (
+        nearest_snapshot_on_or_before(table_root(cfg, "aspas"), latest_routes)
+        if latest_routes is not None
+        else None
+    )
     if latest_routes is None:
         result.skipped.append(("path coverage and regional", "no ingested routes"))
     elif routes is None:
@@ -357,10 +367,14 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
         )
     elif aspas is None:
         result.skipped.append(("path coverage and regional", "no ingested ASPA records"))
+    elif aspa_day is None:
+        result.skipped.append(
+            ("path coverage and regional", f"no ASPA snapshot at or before {latest_routes}")
+        )
     else:
         publishers = {
-            int(a) for a in aspas.filter(pl.col("snapshot_date") == latest_routes)["customer_asn"]
-        } or {int(a) for a in aspas["customer_asn"]}
+            int(a) for a in aspas.filter(pl.col("snapshot_date") == aspa_day)["customer_asn"]
+        }
 
         coverage = aspa_coverage_by_position(routes.select("as_path"), publishers)
         result.written.append(path_coverage(coverage["shares"], out / "aspa_path_coverage.png"))

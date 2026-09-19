@@ -129,6 +129,18 @@ def find_config(start: Path | None = None) -> Path:
     return checkout
 
 
+def _project_root(config_file: Path) -> Path:
+    """The directory that relative ``paths.*`` entries are resolved against.
+
+    For the normal layout, ``<root>/config/default.yaml``, that is ``<root>``. A config
+    given with ``--config`` or ``$BGPSHIELD_CONFIG`` need not sit in a ``config`` directory
+    at all, and assuming it does put the data one level too high: ``--config ./my.yaml`` in
+    the repo root would have written ``data/raw`` beside the repo instead of inside it.
+    """
+    parent = config_file.parent
+    return parent.parent if parent.name == "config" else parent
+
+
 def _resolve_paths(paths: dict[str, object], root: Path) -> dict[str, object]:
     """Make every relative path absolute against the project root."""
     resolved: dict[str, object] = {}
@@ -163,7 +175,7 @@ def load_config(path: Path | None = None) -> Config:
     if not isinstance(raw, dict):
         raise ConfigError(f"{target} must hold a mapping at the top level")
 
-    root = target.resolve().parent.parent
+    root = _project_root(target.resolve())
     raw = dict(raw)
     raw["root"] = root
     if isinstance(raw.get("paths"), dict):

@@ -4,7 +4,8 @@ Everything below was checked on **2026-09-17** by downloading a real sample (kep
 under `data/raw/samples/`) or by reading the live documentation. Nothing here is from memory.
 `VERIFY` items from `implementation.md` are cross-referenced by section. All downloads used
 `User-Agent: aspa-watch-phase0/0.1 (research; tanishkajangir26@gmail.com)`, the name the
-project carried at the time. It was renamed to BGPShield on 2026-09-18 and the scripts now send
+project carried at the time. It was renamed to Hijax on 2026-09-18, then to BGPShield on
+2026-09-19, and the scripts now send
 `bgpshield-phase0/0.1 (research; tanishkajangir26@gmail.com)`.
 
 Sample sizes and record counts are for the specific files named; they change daily.

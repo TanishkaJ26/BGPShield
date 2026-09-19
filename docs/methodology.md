@@ -167,15 +167,22 @@ Section 10.4 requires relationships that were not inferred from the very event b
 Measured with `scripts/phase2_measure_ingest.ps1`, which samples memory across the whole
 process tree because collectors run in separate processes.
 
-| Measure | Result | Criterion |
+> **Superseded. Do not quote the table below.** These numbers were measured on data that
+> a parallel ingest had silently truncated, which was found in Phase 7. The same six
+> collectors on the same date actually hold 134,127,599 rows, not 99,447,753, and the
+> corrected measurement is **64.2 minutes** and **1.80 GB** against 818 MB of Parquet. See
+> "The Phase 2 measurement, redone on verified-complete data" later in this document. The
+> original table is kept because deleting a retracted measurement hides that it was made.
+
+| Measure | Result (RETRACTED) | Criterion |
 | --- | --- | --- |
 | Wall clock | **60.2 minutes** | under 1 hour |
 | Peak memory | **1.10 GB** | under 8 GB |
 | Routes stored | 99,447,753 | — |
 | Parquet written | 748 MB | — |
 
-Memory passes with roughly seven times the headroom. **Time misses the bar, by twelve
-seconds.** That is reported as a miss rather than rounded down.
+As measured at the time, memory passed with roughly seven times the headroom and time missed
+the bar by twelve seconds. On the corrected data the miss is larger, at 4.2 minutes.
 
 The binding constraint is this laptop's link to the archives, not the code. Downloading one
 43 MB dump measured 227 KB/s, and parsing the same dump from local disk runs at 38,263 routes
@@ -839,16 +846,21 @@ record only does work when the network next to it on the path also has one. Meas
 
 | Position | Share of routes |
 | --- | ---: |
-| A publisher anywhere on the path | 40.0% |
-| A publisher somewhere in transit | 33.2% |
-| The collector's own peer publishes | 8.4% |
+| A publisher anywhere on the path | 39.6% |
+| A publisher somewhere in transit | 32.5% |
+| The collector's own peer publishes | 8.7% |
 | The origin publishes | 3.0% |
 | **Two adjacent publishers** | **5.4%** |
-| **Every hop covered** | **0.04%** |
+| **Every hop covered** | **0.05%** |
+
+These are the values `bgpshield export` writes to `web/public/data/path_coverage.json` and the
+site displays, recomputed on the verified-complete six-collector ingest. An earlier version of
+this table read 40.0% / 33.2% / 8.4% / 3.0% / 5.4% / 0.04%, measured before the truncated
+parallel ingest was found in Phase 7 (D-068); the shape of the finding is unchanged.
 
 Two in five routes already touch a publisher, which sounds like meaningful progress. Only
 **5.4%** contain an adjacent pair, which is the first point at which ASPA can say anything about
-a hop, and **0.04%** are fully covered end to end. The gap between 40% and 5.4% is the whole
+a hop, and **0.05%** are fully covered end to end. The gap between 39.6% and 5.4% is the whole
 story of partial deployment: adoption is scattered, and scattered adoption composes badly,
 because value appears only where two publishers happen to land next to each other.
 
@@ -857,7 +869,7 @@ This is also the honest frame for the counterfactual numbers from Phase 5. Claim
 
 ### Longitudinal coverage
 
-The RPKI half of the longitudinal series was already complete from Phase 1: **155 weekly
+The RPKI half of the longitudinal series was already complete from Phase 1: **154 weekly
 snapshots** of VRPs and ASPAs from 2023-10-11, the first day ASPA data exists, to 2026-09-16.
 The BGP half is far more expensive, so it is sampled rather than complete, via
 `scripts/phase6_longitudinal.py`:
@@ -880,7 +892,7 @@ with nulls, so a gap in the sweep is visible rather than silently skipped.
 
 ### Figures
 
-`uv run bgpshield report` regenerates all six figures into `figures/` from stored tables alone. It
+`uv run bgpshield report` regenerates all seven figures into `figures/` from stored tables alone. It
 downloads nothing, so the same data always produces the same pictures, and a figure whose
 inputs are missing is named and skipped rather than drawn from whatever is to hand.
 
@@ -1051,7 +1063,7 @@ make reproduce-small
 ```
 
 It ingests one RPKI snapshot, one month of topology data and one collector's routing table for
-2026-09-01, validates and detects over them, and compares eleven counts against
+2026-09-01, validates and detects over them, and compares twelve counts against
 `tests/fixtures/reproduce_small.json`. rrc06 was chosen because it is the smallest configured
 collector at about 43 MB, and archive files for a past date never change, so the answer is
 stable.
@@ -1069,6 +1081,7 @@ stable.
 | ASPA unknown | 5,583,607 | 5,583,607 |
 | VRPs | 996,912 | 996,912 |
 | ASPA records | 2,822 | 2,822 |
+| dump bytes | 42,908,622 | 42,908,622 |
 
 All match, in **3.6 minutes** against a thirty-minute budget. The check covers twelve exact
 counts plus the five normalization drop rates - seventeen values in total. The drop rates were

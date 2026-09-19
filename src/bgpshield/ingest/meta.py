@@ -662,6 +662,10 @@ class MetaResult:
     ranked: int = 0
     as_meta_rows: int = 0
     skipped_asrank: bool = False
+    truncated_asrank: bool = False
+    """Set when ``--asrank-pages`` cut the walk short. Such a table is used for the run but
+    never cached, because a later command cannot tell a partial cone ranking from a whole
+    one and would rank the world against a few thousand networks."""
     as2org_month: str = ""
     """The month the organisation data actually came from, which may be earlier than asked
     for because the dataset was quarterly before 2024."""
@@ -715,8 +719,14 @@ def ingest_month(
         ranks = pl.read_parquet(ranks_path)
     else:
         ranks = fetch_asrank(cfg, max_pages=asrank_pages)
-        ranks_path.parent.mkdir(parents=True, exist_ok=True)
-        ranks.write_parquet(ranks_path)
+        # A walk stopped early is a smoke-run artefact. Writing it would leave every later
+        # run reusing a partial ranking that looks complete, which is how the counterfactual
+        # and the regional tables would end up ranking against a few thousand networks.
+        if asrank_pages is None:
+            ranks_path.parent.mkdir(parents=True, exist_ok=True)
+            ranks.write_parquet(ranks_path)
+        else:
+            result.truncated_asrank = True
     result.ranked = ranks.height
 
     registry = load_asn_registry(cfg)

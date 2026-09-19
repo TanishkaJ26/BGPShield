@@ -104,13 +104,14 @@ npm run serve                                       # then open http://localhost
 ## Headline findings
 
 - **2.87%** of routed networks publish an ASPA record. But only **5.4%** of routes contain two
-  *adjacent* publishers, which is the first point at which ASPA can judge a hop, and 0.04% are
+  *adjacent* publishers, which is the first point at which ASPA can judge a hop, and 0.05% are
   covered end to end. Those two numbers have to be read together.
 - **None of India's twelve largest transit networks publishes an ASPA record.** The largest
   Indian network that does has a customer cone of 85 and ranks 536th globally; the largest
   Indian network overall ranks 20th. Adoption is happening where it does the least good.
-- Roughly **one in five** ROV-Invalid routes is better explained by an incomplete published
-  record than by anything wrong with the routing.
+- Roughly **one in five** ASPA-Invalid routes is better explained by an incomplete published
+  record than by anything wrong with the routing. This is a statement about ASPA, not about
+  origin validation: ROV-Invalid is a different and much smaller set.
 - Leak-detection precision measured **46%**, and of seven well-documented incidents only two
   could be judged at a single collector at all.
 

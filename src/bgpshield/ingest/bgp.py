@@ -212,8 +212,14 @@ def fetch_dump(cfg: Config, collector: str, url: str, *, force: bool = False) ->
         raise RibNotFoundError(f"no such local dump: {url}")
 
     dest = mrt_cache_path(cfg, collector, url)
+    # Closed on every path. `incidents` calls this once per five-minute update file, so a
+    # leaked session per call means hundreds of open connection pools in one run, and on
+    # Windows the exhausted handles surface as unreachable files - a self-inflicted data gap.
     session = build_session(cfg.project.user_agent)
-    got = download(session, url, dest, force=force)
+    try:
+        got = download(session, url, dest, force=force)
+    finally:
+        session.close()
     if got is None:
         raise RibNotFoundError(f"archive has no dump at {url}")
     return got

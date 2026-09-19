@@ -516,7 +516,9 @@ Time assumes about 6 h/week from the owner, with Claude Code doing most of the t
 - **Draft examples** as parameterized tests (10.3).
 - **Property tests** (10.3).
 - **Golden-file test:** a tiny real MRT file (a few hundred routes, committed under `tests/fixtures/`) → the expected `routes` Parquet row count and a few spot values.
-- **Regression:** `make reproduce-small` output is compared with committed aggregate fixtures in CI.
+- **Regression:** `bgpshield reproduce` compares its output with the committed aggregate
+  fixtures. It is run by hand rather than in CI, because it downloads about 66 MB and takes
+  minutes; CI runs lint, format, types, tests and a CLI smoke check.
 - Coverage target: ≥ 90% for `paths.py`, `validate/`, `detect/`, `counterfactual.py`.
 
 ## 13. Metrics (what goes in the paper)
@@ -565,7 +567,7 @@ Collect for each: date/time window (UTC), leaker or hijacker ASN, affected prefi
 
 ```
 bgpshield ingest-rpki   --date D | --from D1 --to D2 [--every 7d]
-bgpshield ingest-bgp    --date D --collectors rrc00,route-views2 [--updates --window START,END]
+bgpshield ingest-bgp    --date D --collectors rrc00,route-views2 [--limit N] [--jobs N]
 bgpshield ingest-meta   --month YYYY-MM
 bgpshield validate      --date D
 bgpshield detect        --date D
@@ -593,5 +595,6 @@ Open-source contributions to aim for along the way: `pybgpkit` and `pybgpstream`
 
 1. Collectors: accept the diversity rule in Section 8, or target specific Indian IXPs if a collector exists there?
 2. Dashboard hosting: GitHub Pages or Vercel?
-3. ~~Project name: keep "ASPA Watch" or choose another?~~ **Answered 2026-09-18: "BGPShield".**
+3. ~~Project name: keep "ASPA Watch" or choose another?~~ **Answered 2026-09-18: "Hijax",
+   then renamed 2026-09-19 to "BGPShield" to match the GitHub repository (D-066).**
 4. Paper target: arXiv preprint only, or also a workshop/short-paper venue (e.g. PAM or IMC poster track) if the results are strong?

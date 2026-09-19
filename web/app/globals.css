@@ -242,6 +242,13 @@ nav ul {
   overflow-x: auto;
   scrollbar-width: none;
 }
+/* A flex item will not shrink below its own content unless it is allowed to, so the list
+   above kept its full width, the pill overflowed the screen, and on a phone the last two
+   sections sat off the right edge with no way to reach them - the `overflow-x: auto` never
+   engaged because there was nothing constraining the box. */
+.pill-nav > nav {
+  min-width: 0;
+}
 nav ul::-webkit-scrollbar { display: none; }
 nav a {
   position: relative;
@@ -814,7 +821,12 @@ code {
 
 /* --------------------------------------------------------------------- table */
 
-.table-wrap { border-top: 1px solid var(--ink); }
+/* The per-network table has eight columns and cannot fit a phone. It scrolls inside its own
+   box so the page itself never scrolls sideways, which would drag the whole layout with it. */
+.table-wrap {
+  border-top: 1px solid var(--ink);
+  overflow-x: auto;
+}
 table {
   border-collapse: collapse;
   width: 100%;

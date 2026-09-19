@@ -109,14 +109,17 @@ def load_aspa_registry(cfg: Config, day: date) -> AspaRegistry:
     if not path.exists():
         raise FileNotFoundError(f"no ASPAs ingested for {day}; run 'bgpshield ingest-rpki' first")
     frame = pl.read_parquet(path)
-    return AspaRegistry(
-        {
-            int(customer): frozenset(int(p) for p in providers)
-            for customer, providers in zip(
-                frame["customer_asn"], frame["provider_asns"], strict=True
-            )
-        }
-    )
+    # A snapshot holds one row per (customer, trust anchor), so a customer publishing under
+    # two anchors appears twice. The effective provider set is the union over all of a
+    # customer's valid ASPAs (``draft-ietf-sidrops-aspa-verification-28`` Section 5.3);
+    # keeping only the last row would drop real providers and report legitimate hops as
+    # Invalid. No customer does this in the snapshots ingested so far, which is exactly why
+    # it has to be handled here rather than noticed later.
+    merged: dict[int, frozenset[int]] = {}
+    for customer, providers in zip(frame["customer_asn"], frame["provider_asns"], strict=True):
+        asn = int(customer)
+        merged[asn] = merged.get(asn, frozenset()) | frozenset(int(p) for p in providers)
+    return AspaRegistry(merged)
 
 
 def validate_collector(
@@ -190,7 +193,10 @@ def validate_collector(
         bad_from.append(hop[0] if hop else None)
         bad_to.append(hop[1] if hop else None)
 
-    summary.distinct_origins = len(rov_cache)
+    # The cache is keyed on (prefix, origin), so its length is a count of prefix-origin
+    # pairs and is about two orders of magnitude larger than the number of origins. Count
+    # the origins themselves; a sanity figure that is wrong is worse than no figure.
+    summary.distinct_origins = len({origin for _, origin in rov_cache if origin is not None})
     summary.distinct_paths = len(aspa_cache)
 
     if write:

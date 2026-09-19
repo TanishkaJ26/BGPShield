@@ -93,7 +93,7 @@ site: export adoption
 # GitHub Pages serves a project site from /<repository name>. The name is read from the
 # origin remote (the GitHub repository is not called the same thing as this folder), so a
 # rename cannot leave a stale value here. Override with BASE_PATH=/name if needed.
-BASE_PATH ?= /$(shell git remote get-url origin 2>/dev/null | sed -E 's#.*/([^/]+?)(\.git)?$$#\1#')
+BASE_PATH ?= /$(shell git remote get-url origin 2>/dev/null | sed -E 's#.*/##; s#\.git$$##')
 
 site-pages: export adoption
 	cd web && NEXT_PUBLIC_BASE_PATH=$(BASE_PATH) npm run build

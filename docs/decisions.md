@@ -2,6 +2,68 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-19 - Final pre-launch testing
+
+### D-067: Every feature was run once, and the run found seven real defects
+Before release each CLI command was run against the stored data, every error path was
+exercised, and the site was driven in a browser. Seven defects surfaced that neither the test
+suite nor `mypy --strict` could see, and all are fixed:
+
+* **Figures and the dashboard could describe different publisher populations.** `report.py`
+  selected ASPA publishers by exact date match against the routing date and, failing that,
+  fell back to the union of publishers across *every* snapshot ever ingested. Since RPKI
+  snapshots are weekly and routing tables daily, the fallback was the normal path, so the
+  RQ1 path-coverage figure could count networks that had not published on the day being
+  measured. `export.py` already did this correctly. Both now use
+  `nearest_snapshot_on_or_before`.
+* **`distinct origins` was not distinct origins.** The validation summary printed the size of
+  a cache keyed on `(prefix, origin)`, about two orders of magnitude too large: 1,362,911
+  instead of 86,237 for rrc06 on 2026-09-01. A sanity figure that is wrong is worse than no
+  figure, because it is the number a reader uses to decide whether to trust the rest.
+* **A provider set could be dropped when one customer publishes under two trust anchors.** A
+  snapshot holds one row per (customer, anchor) and both consumers collapsed those rows with
+  a last-wins dict comprehension, against the union rule in
+  `draft-ietf-sidrops-aspa-verification-28` Section 5.3. No customer does this in any
+  snapshot ingested so far, which is precisely why it had to be fixed before one does: the
+  symptom would be a legitimate hop reported Invalid, landing in the RQ2 false-positive
+  count.
+* **A truncated AS Rank walk was cached as if complete.** `--asrank-pages` is a smoke-run
+  flag, but its partial result was written to `as_rank.parquet` and reused by every later
+  run, which would have ranked the world against a few thousand networks. A truncated walk
+  is now used for the run and never cached, and the CLI says so.
+* **`median_blocking_position` was not a median.** It took the upper of the two middle values
+  for an even count. Published under that name in the RQ3 table and figure.
+* **A missing input printed a stack trace.** Every other error path is one clean line; a
+  missing VRP table dumped a traceback with the message buried at the bottom.
+* **Cached ingests reported `total rows: 0`** beside six lines each naming millions of cached
+  rows.
+
+* **The daily job computed the wrong topology month a few days a year.** `date -d "$day -1
+  month"` overflows when the previous month is shorter: 31 March minus one month normalises
+  to 3 March, so the job asked for the same month it was measuring and then failed in
+  `validate`, which correctly wants the month before (plan Section 10.4). Bash now steps back
+  one day from the first of the month, matching `bgpshield.tables.previous_month`.
+
+Two more were found in the site and are recorded with it: every headline rendered its words
+run together, because the space between words sat inside an `overflow: hidden` inline-block;
+and a network listing one upstream was labelled "1 providers".
+
+### D-068: Retracted measurements are marked, not deleted
+`docs/methodology.md` presented the Phase 2 acceptance table (60.2 minutes, 99,447,753 rows)
+as the measurement, while a later section retracted it as having been taken on silently
+truncated data. A reader arriving at Phase 2 got numbers the project itself no longer stands
+behind. The table now carries a "superseded, do not quote" banner naming the corrected
+figures, and is kept rather than removed: deleting a retracted measurement hides that it was
+ever made, which is the opposite of what a reproducibility document is for.
+
+Also corrected in the same pass: the front page called the one-in-five false-positive finding
+"ROV-Invalid" when it is measured on ASPA-Invalid routes; the reproduction was described as
+checking eleven counts when it checks twelve; `bgpshield report` was described as writing six
+figures when it writes seven; the rename to BGPShield was dated 2026-09-18 when that was the
+rename to Hijax; `implementation.md` documented two `ingest-bgp` flags that do not exist and
+claimed CI runs the reproduction, which it does not; and "155 weekly snapshots" was really 154
+weekly plus one off-cadence date added by the reproduction.
+
 ## 2026-09-19 - Launch hardening
 
 ### D-066: The project is "BGPShield", the same as the GitHub repository
@@ -113,6 +175,7 @@ drift quietly if the path parser changed.
 ### D-052: The reproduction compares against a fixture, and updating it is a separate command
 Plan Section 11 Phase 7 accepts on an independent rerun matching committed numbers, so
 `make reproduce-small` checks eleven counts against `tests/fixtures/reproduce_small.json` and
+*(superseded by D-062 above: the comparison now covers twelve counts plus five drop rates)*
 `make reproduce-fixture` is what records a new baseline. Keeping those apart is the whole
 point: a check that rewrites what it is comparing against would pass forever and mean nothing.
 rrc06 and 2026-09-01 were chosen because rrc06 is the smallest configured collector and
@@ -263,7 +326,7 @@ organisations, because Bharti Airtel holds two and Tata entities hold three.
 ### D-046: Path coverage is reported next to adoption share, never on its own
 Adoption share answers how many networks publish; it does not answer what publishing buys. An
 ASPA record only does work when the network beside it on the path also has one. On real routes
-40.0% touch a publisher somewhere but only 5.4% contain an adjacent pair and 0.04% are covered
+39.6% touch a publisher somewhere but only 5.4% contain an adjacent pair and 0.05% are covered
 end to end. Quoting 40% alone would badly overstate what is deployable today, so the two
 numbers are always presented together, including in the figure.
 

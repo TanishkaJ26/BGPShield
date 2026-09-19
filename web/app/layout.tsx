@@ -63,6 +63,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>
+        {/*
+          Without JavaScript nothing ever adds the `on` and `shown` classes, so every headline
+          and every revealed block would sit at `opacity: 0` for ever - the site's own README
+          promises the opposite, and a page that is printed, archived or read by a crawler is
+          exactly where the numbers have to survive. These rules are the visibility half of the
+          reduced-motion block in globals.css, and apply only when scripting is off.
+        */}
+        <noscript>
+          <style>{`
+            .kinetic .w > span { transform: none; opacity: 1; }
+            [data-reveal] { opacity: 1; transform: none; }
+            .story { height: auto; }
+            .story-stage { position: static; height: auto; overflow: visible; }
+            .story-copy { min-height: 0; }
+            .story-step { position: static; opacity: 1; transform: none; margin-bottom: 2rem; }
+            .rail { height: auto; }
+            .rail-stage { position: static; height: auto; overflow: auto; }
+            .cursor, .cursor-ring { display: none; }
+          `}</style>
+        </noscript>
         <Cursor />
         <header className="site-head">
           <Nav snapshot={summary?.snapshot_date ?? null} />
