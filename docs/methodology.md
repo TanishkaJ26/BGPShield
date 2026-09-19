@@ -1009,6 +1009,22 @@ day long, and only a multi-day run would expose it.
 `scripts/phase1_seven_day_replay.py` replays exactly that: seven consecutive dates, each
 starting from an empty processed directory, each merging into the one JSON that carries over.
 
+**It passes.** Run on 2026-09-19 over 2026-09-12 to 2026-09-18:
+
+| Date | ASPA records | Series holds |
+| --- | ---: | ---: |
+| 2026-09-12 | 3,028 | 1 day |
+| 2026-09-13 | 3,032 | 2 days |
+| 2026-09-14 | 3,035 | 3 days |
+| 2026-09-15 | 3,068 | 4 days |
+| 2026-09-16 | 3,088 | 5 days |
+| 2026-09-17 | 3,105 | 6 days |
+| 2026-09-18 | 3,125 | 7 days |
+
+Each run ingested one day from an empty processed directory and the published series grew by
+exactly one, which is what a broken merge would have failed to do: it would have left the
+series one day long forever, and only a multi-day run would have shown it.
+
 The streak itself is now checked rather than remembered. `hijax adoption` and the workflow both
 compute the longest run of consecutive days from the published JSON and print it. Against the
 real file today that is **154 snapshots, streak of 1** - the backfill is weekly, and seven-day
@@ -1054,7 +1070,11 @@ stable.
 | VRPs | 996,912 | 996,912 |
 | ASPA records | 2,822 | 2,822 |
 
-All eleven match, in **3.6 minutes** against a thirty-minute budget. The derived tables were
+All match, in **3.6 minutes** against a thirty-minute budget. The check covers twelve exact
+counts plus the five normalization drop rates - seventeen values in total. The drop rates were
+added after `dump_bytes` was found sitting at 0 in the fixture while the real ingest had
+recorded 42,908,622: it was being written but never compared, and a recorded-but-unchecked
+number is worse than no number because it looks like evidence (D-062). The derived tables were
 deleted before the run, so the routing table was re-parsed and everything downstream
 recomputed from scratch.
 
@@ -1084,6 +1104,14 @@ The site is a static Next.js export with five pages (Overview, Networks, Inciden
 Methodology), served from `web/out/` with no server at all. A page whose data file is missing
 says so and names the command that produces it; it never shows a zero, because a zero reads as
 a measurement.
+
+The pages render their measurements **at build time**. The first version fetched the JSON in
+the browser, which left the built HTML empty of numbers - wrong for a project whose claim is
+that its results can be checked and cited later, since an archived or printed page captured
+nothing. Verified after the change: the region page's HTML contains AS9498's cone of 3,965 and
+AS9885's rank of 536 as text, and the network table ships a hundred real rows that work with
+JavaScript switched off, while the page stays at 52 KB because the full table is fetched only
+when somebody searches (D-060).
 
 Next.js 15.1.6 was flagged on install for CVE-2025-66478, and the version that fixed it still
 pulled a vulnerable `postcss` transitively. The build now uses Next 16.3.5 with React 19.3.0

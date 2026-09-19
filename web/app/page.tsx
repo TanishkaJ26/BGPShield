@@ -1,13 +1,5 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import {
-  AdoptionPayload,
-  SummaryPayload,
-  loadJson,
-  percent,
-  thousands,
-} from '../lib/data';
+import { AdoptionPayload, SummaryPayload, percent, thousands } from '../lib/data';
+import { readExport } from '../lib/load';
 
 /** Labels for the path-coverage positions, in the order that tells the story. */
 const COVERAGE_ORDER: [string, string][] = [
@@ -19,23 +11,9 @@ const COVERAGE_ORDER: [string, string][] = [
   ['all_hops', 'Every hop covered'],
 ];
 
-export default function Overview() {
-  const [summary, setSummary] = useState<SummaryPayload | null>(null);
-  const [adoption, setAdoption] = useState<AdoptionPayload | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    Promise.all([
-      loadJson<SummaryPayload>('summary.json'),
-      loadJson<AdoptionPayload>('aspa_adoption.json'),
-    ]).then(([s, a]) => {
-      setSummary(s);
-      setAdoption(a);
-      setLoaded(true);
-    });
-  }, []);
-
-  if (!loaded) return <p className="meta">Loading measurements…</p>;
+export default async function Overview() {
+  const summary = await readExport<SummaryPayload>('summary.json');
+  const adoption = await readExport<AdoptionPayload>('aspa_adoption.json');
 
   const global = summary?.adoption?.['global'];
   const coverage = summary?.path_coverage;
@@ -144,7 +122,7 @@ export default function Overview() {
         </>
       ) : null}
 
-      {adoption ? (
+      {adoption?.by_day?.length ? (
         <>
           <h2>Adoption over time</h2>
           <p className="meta">
@@ -171,7 +149,6 @@ export default function Overview() {
 
 /** A plain inline chart. The figures in the paper are generated separately by `hijax report`. */
 function Sparkline({ points }: { points: { snapshot_date: string; aspas: number }[] }) {
-  if (!points?.length) return null;
   const sorted = [...points].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
   const max = Math.max(...sorted.map((p) => p.aspas), 1);
   const width = 720;

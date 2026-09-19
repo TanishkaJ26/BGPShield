@@ -47,13 +47,15 @@ test:
 # validates and detects over them, and compares the counts against
 # tests/fixtures/reproduce_small.json. Archive files for a past date do not change, so the
 # numbers should match exactly.
+# `make` is not present on every machine this project is worked on, so the reproduction is
+# also a first-class command: `hijax reproduce`. Both run the same code.
 reproduce-small:
-	uv run python scripts/reproduce_small.py
+	uv run hijax reproduce
 
 # Record a new baseline. Deliberately separate from the check above: a comparison that
 # rewrites what it compares against proves nothing.
 reproduce-fixture:
-	uv run python scripts/reproduce_small.py --update-fixture
+	uv run hijax reproduce --update-fixture
 
 figures:
 	uv run hijax report

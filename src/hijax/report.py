@@ -13,7 +13,7 @@ so, because a truncated axis is the easiest way to make a small change look like
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,12 @@ from hijax.analysis.adoption import aspa_coverage_by_position  # noqa: E402
 from hijax.analysis.longitudinal import build_series  # noqa: E402
 from hijax.analysis.regional import compare_regions  # noqa: E402
 from hijax.config import Config  # noqa: E402
+from hijax.tables import (  # noqa: E402
+    latest_snapshot,
+    previous_month,
+    read_partition,
+    table_root,
+)
 
 #: One accessible palette, used consistently so the same thing is the same colour across
 #: every figure in the paper.
@@ -258,20 +264,6 @@ def regional_comparison(comparison: pl.DataFrame, destination: Path) -> Path:
 # ---------------------------------------------------------------------------------------
 
 
-def _latest_snapshot(cfg: Config, table: str) -> date | None:
-    root = cfg.paths.processed / table
-    if not root.exists():
-        return None
-    days = []
-    for child in root.iterdir():
-        if child.name.startswith("snapshot_date="):
-            try:
-                days.append(datetime.strptime(child.name.split("=", 1)[1], "%Y-%m-%d").date())
-            except ValueError:
-                continue
-    return max(days) if days else None
-
-
 def validation_over_time(series: pl.DataFrame, destination: Path) -> Path:
     """RQ1 over time: what share of routes each validator could judge, quarter by quarter.
 
@@ -314,22 +306,11 @@ def validation_over_time(series: pl.DataFrame, destination: Path) -> Path:
     return _save(fig, destination)
 
 
-def _previous_month(day: date) -> str:
-    year, month = day.year, day.month - 1
-    if month == 0:
-        year, month = year - 1, 12
-    return f"{year:04d}-{month:02d}"
-
-
 def _load_routes(cfg: Config, day: date) -> pl.DataFrame | None:
     """Read every collector's routes for one date, for the cross-sectional figures."""
-    root = cfg.paths.processed / "routes" / f"snapshot_date={day:%Y-%m-%d}"
-    frames = [
-        pl.read_parquet(child / "routes.parquet", columns=["as_path", "origin_asn"])
-        for child in sorted(root.iterdir())
-        if (child / "routes.parquet").exists()
-    ]
-    return pl.concat(frames) if frames else None
+    return read_partition(
+        table_root(cfg, "routes"), day, "routes.parquet", ["as_path", "origin_asn"]
+    )
 
 
 def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
@@ -364,7 +345,7 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
     except Exception:  # noqa: BLE001
         result.skipped.append(("rpki coverage", "no ingested VRP snapshots"))
 
-    latest_routes = _latest_snapshot(cfg, "routes")
+    latest_routes = latest_snapshot(table_root(cfg, "routes"))
     routes = _load_routes(cfg, latest_routes) if latest_routes is not None else None
     if latest_routes is None:
         result.skipped.append(("path coverage and regional", "no ingested routes"))
@@ -384,7 +365,7 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
         coverage = aspa_coverage_by_position(routes.select("as_path"), publishers)
         result.written.append(path_coverage(coverage["shares"], out / "aspa_path_coverage.png"))
 
-        meta_month = _previous_month(latest_routes)
+        meta_month = previous_month(latest_routes)
         meta_path = cfg.paths.processed / "as_meta" / f"month={meta_month}" / "as_meta.parquet"
         if meta_path.exists():
             routed = {
@@ -407,7 +388,7 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ReportResult:
         )
 
     counter = cfg.paths.processed / "counterfactual"
-    latest_cf = _latest_snapshot(cfg, "counterfactual")
+    latest_cf = latest_snapshot(table_root(cfg, "counterfactual"))
     if latest_cf is not None:
         frame = pl.read_parquet(
             counter / f"snapshot_date={latest_cf:%Y-%m-%d}" / "counterfactual.parquet"

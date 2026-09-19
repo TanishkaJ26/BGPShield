@@ -5,7 +5,7 @@
  "aspa_valid": 1150451,
  "collector": "rrc06",
  "date": "2026-09-01",
- "dump_bytes": 0,
+ "dump_bytes": 42908622,
  "flag_rates": {
   "as_set": 0.000153,
   "loop": 0.000334,

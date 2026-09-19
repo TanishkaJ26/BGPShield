@@ -2,6 +2,51 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-19 - Cleaning up after Phase 7
+
+### D-059: The whole export describes one date, decided once
+Each exporter used to pick its own latest snapshot. The per-network table read the newest
+validation results while the regional comparison and path coverage read the newest routes, so
+if those ever diverged - which happens whenever validation runs without a fresh ingest - the
+files would describe different days and `summary.json` would combine them into one headline
+without anything looking wrong. The date is now chosen once, by `export_date`, and the routing
+tables set it because they are the scarcest input.
+
+ASPA snapshots needed the same care in the other direction. They are backfilled weekly while
+routing tables are per day, so an exact match is the exception rather than the rule; the export
+now takes the newest ASPA snapshot at or before the routing date, and every file records
+`aspa_snapshot_date` so the two are never silently assumed to have lined up.
+
+### D-060: The site renders its measurements at build time
+Every page was a client component that fetched its JSON in the browser. The built HTML
+therefore contained no measurements at all, which is the wrong trade for this project
+specifically: saving a page, archiving it, or printing it to PDF captured an empty shell, and
+the entire argument of the site is that its numbers can be checked and cited later. Pages now
+read the exported JSON during `next build`.
+
+The searchable network table is the one place that still needs the browser. The page renders
+its first hundred rows into the HTML, so it means something with no JavaScript at all, and the
+full megabyte-sized table is fetched once and only when somebody actually searches. If that
+fetch fails the page says it is searching only the rows already shown, rather than presenting a
+filtered hundred as though it were the whole answer.
+
+### D-061: The table-reading helpers live in one module
+`hijax.tables` now holds the snapshot-date parsing, partition reading and previous-month
+arithmetic that Phases 6 and 7 had written four times over, in the report builder, the
+exporter, the longitudinal analysis and the reproduction script. They had already begun to
+drift: one listed dates with `datetime.strptime` and another with `date.fromisoformat`, and
+only some of them tolerated a partition directory containing no table. This is the same
+consolidation `hijax.topology` got in Phase 4, for the same reason - four copies of a date
+parser is four chances for one of them to disagree about what "the latest snapshot" means.
+
+### D-062: The reproduction checks the drop rates and the dump size too
+The fixture recorded `dump_bytes` but did not compare it, and the value silently sat at 0 -
+left over from a run that predated the field - while the real ingest recorded 42,908,622.
+A recorded-but-unchecked number is worse than no number, because it looks like evidence. The
+comparison now covers twelve exact counts plus the five normalization drop rates, which plan
+Section 11 lists as a Phase 2 deliverable in their own right and which are exactly what would
+drift quietly if the path parser changed.
+
 ## 2026-09-19 - Phase 7
 
 ### D-052: The reproduction compares against a fixture, and updating it is a separate command

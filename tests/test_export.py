@@ -147,3 +147,59 @@ def test_a_seeded_world_exports_within_budget(cfg: Config, tmp_path: Path) -> No
 
 def test_the_budget_is_the_five_megabytes_the_plan_allows() -> None:
     assert BUDGET_BYTES == 5_000_000
+
+
+# --- One date for the whole export (docs/decisions.md D-059) -----------------------------
+
+
+def test_every_export_describes_the_same_snapshot_date(cfg: Config, tmp_path: Path) -> None:
+    """An earlier version let each exporter pick its own latest snapshot, so the network
+    table could describe one day while the regional comparison described another, and the
+    summary would have combined them into a single headline."""
+    _seed(cfg)
+    # A newer validation result with no routes behind it: the old code would have pulled the
+    # network table onto this date and left the regional comparison on the seeded one.
+    later = cfg.paths.processed / "rov_results" / "snapshot_date=2026-09-08" / "collector=rrc06"
+    later.mkdir(parents=True)
+    pl.DataFrame({"origin_asn": [64496], "rov_state": ["valid"]}).write_parquet(
+        later / "rov_results.parquet"
+    )
+
+    build_all(cfg, destination=tmp_path / "out")
+    dates = {
+        name: json.loads((tmp_path / "out" / name).read_text(encoding="utf-8"))["snapshot_date"]
+        for name in ("networks.json", "regional.json", "path_coverage.json")
+    }
+    assert len(set(dates.values())) == 1, f"exports disagree about the date: {dates}"
+    assert set(dates.values()) == {"2026-09-01"}, "routes should set the date, not validation"
+
+
+def test_a_weekly_aspa_snapshot_is_matched_to_a_daily_routing_date(
+    cfg: Config, tmp_path: Path
+) -> None:
+    """ASPA snapshots are backfilled weekly and routing tables are per day, so an exact match
+    is the exception. The newest snapshot at or before the routing date is the right one, and
+    the export has to say which it used rather than implying they lined up."""
+    _seed(cfg)
+    # Move the ASPA records to a few days earlier, as the weekly backfill would leave them.
+    aspa_dir = cfg.paths.processed / "aspas"
+    (aspa_dir / "snapshot_date=2026-09-01").rename(aspa_dir / "snapshot_date=2026-08-26")
+
+    payload = json.loads(
+        export_regional(cfg, tmp_path / "regional.json").read_text(encoding="utf-8")
+    )
+    assert payload["snapshot_date"] == "2026-09-01"
+    assert payload["aspa_snapshot_date"] == "2026-08-26"
+    # The publisher counts still come through rather than collapsing to zero.
+    regions = {row["region"]: row for row in payload["regions"]}
+    assert regions["registered IN"]["publishers_that_route"] == 1
+
+
+def test_an_aspa_snapshot_after_the_routing_date_is_not_used(cfg: Config, tmp_path: Path) -> None:
+    """Records published later cannot describe an earlier routing table."""
+    _seed(cfg)
+    aspa_dir = cfg.paths.processed / "aspas"
+    (aspa_dir / "snapshot_date=2026-09-01").rename(aspa_dir / "snapshot_date=2026-09-20")
+
+    with pytest.raises(FileNotFoundError):
+        export_regional(cfg, tmp_path / "regional.json")

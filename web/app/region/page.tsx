@@ -1,20 +1,9 @@
-'use client';
+import { RegionalPayload, percent, thousands } from '../../lib/data';
+import { readExport } from '../../lib/load';
 
-import { useEffect, useState } from 'react';
-import { RegionalPayload, loadJson, percent, thousands } from '../../lib/data';
+export default async function Region() {
+  const payload = await readExport<RegionalPayload>('regional.json');
 
-export default function Region() {
-  const [payload, setPayload] = useState<RegionalPayload | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    loadJson<RegionalPayload>('regional.json').then((p) => {
-      setPayload(p);
-      setLoaded(true);
-    });
-  }, []);
-
-  if (!loaded) return <p className="meta">Loading measurements…</p>;
   if (!payload) {
     return (
       <p className="missing">

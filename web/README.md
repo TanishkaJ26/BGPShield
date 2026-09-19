@@ -6,7 +6,14 @@ with no server at all.
 ## Where the data comes from
 
 Nothing here queries anything at runtime. The pages read small JSON files under
-`public/data/`, written by the Python side:
+`public/data/` **at build time**, so the measurements end up inside the HTML rather than being
+fetched by the browser. That matters for this project: a page that is saved, archived or
+printed has to still contain its numbers, and it should work with JavaScript switched off.
+
+The one exception is the search box on the Networks page. That page renders its first hundred
+rows into the HTML, and fetches the full megabyte-sized table only when somebody searches.
+
+The JSON is written by the Python side:
 
 ```bash
 uv run hijax adoption --export web/public/data/aspa_adoption.json

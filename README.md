@@ -18,17 +18,53 @@ Two acceptance criteria are still outstanding and are reported as misses rather 
   data it takes **64.2 minutes** (memory, at 1.80 GB against an 8 GB bar, passes). The binding
   constraint is the laptop's link: 818 MB has to arrive, at a measured 232-490 KB/s.
 
+## Running it
+
+The environment is a `uv` virtual environment in `.venv/`. Activate it once per terminal and
+every command below is available as `hijax`:
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+hijax --help
+```
+
+```bash
+# Git Bash / macOS / Linux
+source .venv/Scripts/activate     # .venv/bin/activate on macOS and Linux
+hijax --help
+```
+
+Without activating, call it by path: `.venv\Scripts\hijax.exe --help`.
+
+Setting the environment up from scratch, or after changing dependencies, needs `uv`:
+
+```bash
+uv sync
+```
+
+`make` is a convenience for machines that have it and is not required for anything.
+
 ## Reproducing the numbers
 
 ```bash
-make install
-make reproduce-small
+hijax reproduce
 ```
 
-One date, one collector, compared against the counts committed in
-`tests/fixtures/reproduce_small.json`. Archive files for a past date do not change, so an
-honest rerun matches exactly. It takes about four minutes of compute, plus roughly 66 MB of
-downloads on a fresh clone, against a thirty-minute budget.
+One date, one collector: it ingests, validates and detects, then compares twelve counts and
+five normalization drop rates against `tests/fixtures/reproduce_small.json`. Archive files for
+a past date do not change, so an honest rerun matches exactly. About four minutes of compute,
+plus roughly 66 MB of downloads on a fresh clone, against a thirty-minute budget.
+
+Add `--skip-pipeline` to check what is already stored without re-running anything.
+
+## The dashboard
+
+```bash
+hijax export                                        # write the JSON the site reads
+cd web && npm install && npm run build              # static site into web/out/
+cd out && python -m http.server 8000                # then open http://localhost:8000
+```
 
 ## Headline findings
 

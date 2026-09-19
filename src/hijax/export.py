@@ -32,6 +32,13 @@ from hijax.analysis.adoption import aspa_coverage_by_position
 from hijax.analysis.longitudinal import build_series
 from hijax.analysis.regional import compare_regions, largest_transit
 from hijax.config import Config
+from hijax.tables import (
+    latest_snapshot,
+    nearest_snapshot_on_or_before,
+    previous_month,
+    read_partition,
+    table_root,
+)
 
 #: Plan Section 11 Phase 7: the whole exported payload must stay under this.
 BUDGET_BYTES = 5_000_000
@@ -63,40 +70,42 @@ def _write(payload: dict[str, Any], destination: Path) -> Path:
     return destination
 
 
-def _latest(root: Path) -> date | None:
-    if not root.exists():
-        return None
-    found: list[date] = []
-    for child in root.iterdir():
-        if child.name.startswith("snapshot_date="):
-            try:
-                found.append(date.fromisoformat(child.name.split("=", 1)[1]))
-            except ValueError:
-                continue
-    return max(found) if found else None
+def export_date(cfg: Config) -> date | None:
+    """The one date the whole export describes.
+
+    Deciding this once matters. An earlier version let each exporter pick its own latest
+    snapshot, so the per-network table could describe one day while the regional comparison
+    described another, and `summary.json` would have quietly combined them into a single
+    headline. The routing tables are the expensive input and therefore the scarcest, so they
+    set the date; validation results stand in if routes have not been ingested.
+    """
+    return latest_snapshot(table_root(cfg, "routes")) or latest_snapshot(
+        table_root(cfg, "rov_results")
+    )
 
 
-def _read_partition(root: Path, day: date, leaf: str, columns: list[str]) -> pl.DataFrame | None:
-    """Read one date's rows, concatenating whatever collectors are stored under it."""
-    base = root / f"snapshot_date={day:%Y-%m-%d}"
-    if not base.exists():
-        return None
-    direct = base / leaf
-    if direct.exists():
-        return pl.read_parquet(direct, columns=columns)
-    frames = [
-        pl.read_parquet(child / leaf, columns=columns)
-        for child in sorted(base.iterdir())
-        if (child / leaf).exists()
-    ]
-    return pl.concat(frames) if frames else None
+def aspa_snapshot_for(cfg: Config, day: date) -> date | None:
+    """Which ASPA snapshot describes a routing date.
+
+    RPKI snapshots are backfilled weekly while routing tables are per day, so an exact match
+    is the exception. Published records persist until replaced, so the newest snapshot at or
+    before the routing date is the right one - and every export says which date it used
+    rather than implying the two lined up.
+    """
+    return nearest_snapshot_on_or_before(table_root(cfg, "aspas"), day)
 
 
-def _previous_month(day: date) -> str:
-    year, month = day.year, day.month - 1
-    if month == 0:
-        year, month = year - 1, 12
-    return f"{year:04d}-{month:02d}"
+def _publishers(cfg: Config, aspa_day: date) -> dict[int, int]:
+    """Each publishing network and how many providers it listed."""
+    aspas = read_partition(
+        table_root(cfg, "aspas"), aspa_day, "aspas.parquet", ["customer_asn", "provider_asns"]
+    )
+    if aspas is None:
+        return {}
+    return {
+        int(row["customer_asn"]): len(row["provider_asns"] or [])
+        for row in aspas.iter_rows(named=True)
+    }
 
 
 def export_networks(cfg: Config, destination: Path) -> Path:
@@ -105,15 +114,12 @@ def export_networks(cfg: Config, destination: Path) -> Path:
     Plan Section 11 Phase 7 asks for a table a reader can search by network, showing ROA and
     ASPA status.
     """
-    day = _latest(cfg.paths.processed / "rov_results")
+    day = export_date(cfg)
     if day is None:
         raise FileNotFoundError("no validation results stored")
 
-    rov = _read_partition(
-        cfg.paths.processed / "rov_results",
-        day,
-        "rov_results.parquet",
-        ["origin_asn", "rov_state"],
+    rov = read_partition(
+        table_root(cfg, "rov_results"), day, "rov_results.parquet", ["origin_asn", "rov_state"]
     )
     if rov is None:
         raise FileNotFoundError(f"no readable validation results for {day}")
@@ -127,15 +133,10 @@ def export_networks(cfg: Config, destination: Path) -> Path:
         .fill_null(0)
     )
 
-    aspas = _read_partition(
-        cfg.paths.processed / "aspas", day, "aspas.parquet", ["customer_asn", "provider_asns"]
-    )
-    providers_listed: dict[int, int] = {}
-    if aspas is not None:
-        for row in aspas.iter_rows(named=True):
-            providers_listed[int(row["customer_asn"])] = len(row["provider_asns"] or [])
+    aspa_day = aspa_snapshot_for(cfg, day)
+    providers_listed = _publishers(cfg, aspa_day) if aspa_day else {}
 
-    month = _previous_month(day)
+    month = previous_month(day)
     meta_path = cfg.paths.processed / "as_meta" / f"month={month}" / "as_meta.parquet"
     frame = by_as
     if meta_path.exists():
@@ -182,6 +183,7 @@ def export_networks(cfg: Config, destination: Path) -> Path:
     return _write(
         {
             "snapshot_date": str(day),
+            "aspa_snapshot_date": str(aspa_day) if aspa_day else None,
             "metadata_month": month,
             "networks": len(rows),
             "selection": (
@@ -201,27 +203,28 @@ def export_networks(cfg: Config, destination: Path) -> Path:
 
 def export_regional(cfg: Config, destination: Path, *, country: str = "IN") -> Path:
     """RQ4: one country and its region against the world."""
-    day = _latest(cfg.paths.processed / "routes")
+    day = export_date(cfg)
     if day is None:
         raise FileNotFoundError("no ingested routes")
 
-    routes = _read_partition(cfg.paths.processed / "routes", day, "routes.parquet", ["origin_asn"])
-    aspas = _read_partition(cfg.paths.processed / "aspas", day, "aspas.parquet", ["customer_asn"])
-    if routes is None or aspas is None:
+    routes = read_partition(table_root(cfg, "routes"), day, "routes.parquet", ["origin_asn"])
+    aspa_day = aspa_snapshot_for(cfg, day)
+    if routes is None or aspa_day is None:
         raise FileNotFoundError(f"missing routes or ASPA records for {day}")
+    publishers = set(_publishers(cfg, aspa_day))
 
-    month = _previous_month(day)
+    month = previous_month(day)
     meta_path = cfg.paths.processed / "as_meta" / f"month={month}" / "as_meta.parquet"
     if not meta_path.exists():
         raise FileNotFoundError(f"no as_meta for {month}")
 
     meta = pl.read_parquet(meta_path)
-    publishers = {int(a) for a in aspas["customer_asn"]}
     routed = {int(a) for a in routes.drop_nulls("origin_asn")["origin_asn"].unique()}
 
     return _write(
         {
             "snapshot_date": str(day),
+            "aspa_snapshot_date": str(aspa_day),
             "metadata_month": month,
             "country": country,
             "regions": compare_regions(meta, publishers, routed, country=country).to_dicts(),
@@ -244,21 +247,21 @@ def export_regional(cfg: Config, destination: Path, *, country: str = "IN") -> P
 
 def export_path_coverage(cfg: Config, destination: Path) -> Path:
     """RQ1: where ASPA publishers sit on real paths, which is what adoption actually buys."""
-    day = _latest(cfg.paths.processed / "routes")
+    day = export_date(cfg)
     if day is None:
         raise FileNotFoundError("no ingested routes")
 
-    routes = _read_partition(cfg.paths.processed / "routes", day, "routes.parquet", ["as_path"])
-    aspas = _read_partition(cfg.paths.processed / "aspas", day, "aspas.parquet", ["customer_asn"])
-    if routes is None or aspas is None:
+    routes = read_partition(table_root(cfg, "routes"), day, "routes.parquet", ["as_path"])
+    aspa_day = aspa_snapshot_for(cfg, day)
+    if routes is None or aspa_day is None:
         raise FileNotFoundError(f"missing routes or ASPA records for {day}")
 
-    publishers = {int(a) for a in aspas["customer_asn"]}
-    coverage = aspa_coverage_by_position(routes, publishers)
+    coverage = aspa_coverage_by_position(routes, set(_publishers(cfg, aspa_day)))
 
     return _write(
         {
             "snapshot_date": str(day),
+            "aspa_snapshot_date": str(aspa_day),
             "shares": coverage["shares"],
             "notes": [
                 "An ASPA record can only judge a hop when BOTH networks either side of it "

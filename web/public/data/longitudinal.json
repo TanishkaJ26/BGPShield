@@ -8,9 +8,9 @@
    "rov_invalid": 0.0010031487968181728,
    "rov_valid": 0.45863423471742004,
    "aspa_rows": 26393891,
-   "aspa_valid": 0.19161555225032945,
    "aspa_invalid": 0.00026233343162628046,
    "aspa_unknown": 0.8081221143180443,
+   "aspa_valid": 0.19161555225032945,
    "leak_findings": 839403,
    "leak_leakers": 1420,
    "leak_corroborated": 52212
@@ -22,9 +22,9 @@
    "rov_invalid": 0.0005000057020792447,
    "rov_valid": 0.7127618309628235,
    "aspa_rows": 6751923,
-   "aspa_valid": 0.1703886433539008,
    "aspa_invalid": 0.0026459128754874723,
    "aspa_unknown": 0.8269654437706118,
+   "aspa_valid": 0.1703886433539008,
    "leak_findings": 305856,
    "leak_leakers": 1136,
    "leak_corroborated": 62508

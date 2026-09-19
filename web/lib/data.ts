@@ -1,25 +1,13 @@
 /**
- * Loading the exported measurement files.
+ * Shared types and formatting for the exported measurements.
  *
- * The JSON under public/data is written by `hijax export` from tables already on disk. It is
- * fetched at runtime rather than imported at build time: the per-network table is about a
- * megabyte, and inlining that into the JavaScript bundle would make every page carry it.
+ * The JSON under public/data is written by `hijax export` from tables already on disk, and is
+ * read at build time by `lib/load.ts`. The only thing still fetched in the browser is the full
+ * network table, and only when somebody searches, so `basePath` lives here for that one case.
  */
 
 /** Static assets sit under the base path too, which is not empty on GitHub Pages. */
 export const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-
-export async function loadJson<T>(name: string): Promise<T | null> {
-  try {
-    const response = await fetch(`${basePath}/data/${name}`, { cache: 'no-store' });
-    if (!response.ok) return null;
-    return (await response.json()) as T;
-  } catch {
-    // A missing file means that measurement has not been exported yet. The page says so
-    // rather than showing a zero, which would read as a result.
-    return null;
-  }
-}
 
 export type RegionRow = {
   region: string;

@@ -26,6 +26,8 @@ figures/
 web/node_modules/
 web/.next/
 web/out/
+web/*.tsbuildinfo
+web/next-env.d.ts
 
 # OS / editor
 .DS_Store

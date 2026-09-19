@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
@@ -16,6 +17,7 @@ import polars as pl
 import typer
 
 from hijax import __version__
+from hijax import reproduce as reproduce_mod
 from hijax.analysis.adoption import build as build_adoption
 from hijax.analysis.adoption import longest_daily_streak
 from hijax.analysis.adoption import update_json as update_adoption_json
@@ -51,6 +53,7 @@ from hijax.ingest.meta import (
 from hijax.ingest.rpki import date_range, ingest_date
 from hijax.paths import PathFlag
 from hijax.report import build_all as build_figures
+from hijax.tables import previous_month
 from hijax.validate.aspa import AspaState
 from hijax.validate.rov import RovState
 from hijax.validate.run import load_aspa_registry, load_vrp_index, validate_collector
@@ -367,7 +370,7 @@ def validate(
     cfg = load_config(config_path)
     target = _parse_day(day, "--date")
     chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
-    rel_month = month or _previous_month(target)
+    rel_month = month or previous_month(target)
 
     rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
     if not rel_path.exists():
@@ -419,13 +422,6 @@ def validate(
         raise typer.Exit(code=1)
 
 
-def _previous_month(day: date) -> str:
-    year, month = day.year, day.month - 1
-    if month == 0:
-        year, month = year - 1, 12
-    return f"{year:04d}-{month:02d}"
-
-
 @app.command("correctness")
 def correctness(
     day: Annotated[str, typer.Option("--date", help="Snapshot date, YYYY-MM-DD.")],
@@ -455,7 +451,7 @@ def correctness(
     cfg = load_config(config_path)
     target = _parse_day(day, "--date")
     chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
-    rel_month = month or _previous_month(target)
+    rel_month = month or previous_month(target)
 
     rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
     aspas_path = (
@@ -571,7 +567,7 @@ def detect(
     cfg = load_config(config_path)
     target = _parse_day(day, "--date")
     chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
-    rel_month = month or _previous_month(target)
+    rel_month = month or previous_month(target)
 
     rel_path = cfg.paths.processed / "as_rel" / f"month={rel_month}" / "as_rel.parquet"
     if not rel_path.exists():
@@ -637,7 +633,7 @@ def counterfactual(
     """
     cfg = load_config(config_path)
     target = _parse_day(day, "--date")
-    rel_month = month or _previous_month(target)
+    rel_month = month or previous_month(target)
 
     leaks_path = (
         cfg.paths.processed / "leaks" / f"snapshot_date={target:%Y-%m-%d}" / "leaks.parquet"
@@ -835,7 +831,7 @@ def _run_incident(cfg: Config, incident: Incident, collectors: list[str]) -> Inc
         )
 
     assert incident.window_start is not None and incident.window_end is not None
-    month = _previous_month(incident.window_start.date())
+    month = previous_month(incident.window_start.date())
     rel_path = cfg.paths.processed / "as_rel" / f"month={month}" / "as_rel.parquet"
     if not rel_path.exists():
         typer.echo(f"  no relationships for {month}; run 'hijax ingest-meta --month {month}'")
@@ -1051,7 +1047,7 @@ def regional(
     """
     cfg = load_config(config_path)
     target = _parse_day(day, "--date")
-    meta_month = month or _previous_month(target)
+    meta_month = month or previous_month(target)
     chosen = [c.strip() for c in collectors.split(",")] if collectors else list(cfg.bgp.collectors)
 
     meta_path = cfg.paths.processed / "as_meta" / f"month={meta_month}" / "as_meta.parquet"
@@ -1194,4 +1190,83 @@ def export(
     )
     if not result.within_budget:
         typer.echo("OVER BUDGET: trim the per-network table before committing this")
+        raise typer.Exit(code=1)
+
+
+@app.command("reproduce")
+def reproduce(
+    update_fixture: Annotated[
+        bool, typer.Option("--update-fixture", help="Record a fresh baseline instead of checking.")
+    ] = False,
+    skip_pipeline: Annotated[
+        bool, typer.Option("--skip-pipeline", help="Compare what is already stored.")
+    ] = False,
+    config_path: Annotated[Path, typer.Option("--config", help="Config file.")] = (
+        DEFAULT_CONFIG_PATH
+    ),
+) -> None:
+    """Re-derive one date on one collector and check it against the committed fixtures.
+
+    Plain English: this runs the whole pipeline for a single day and a single collector, then
+    compares what came out against numbers recorded earlier. Archive files for a past date
+    never change, so an honest rerun matches them exactly. It is how anyone else can check
+    that the figures in the write-up are real.
+
+    Recording a new baseline is a separate flag on purpose: a check that quietly rewrites what
+    it compares against would pass forever and mean nothing.
+    """
+    cfg = load_config(config_path)
+    repo = config_path.resolve().parent.parent
+    started = time.monotonic()
+
+    if not skip_pipeline:
+        typer.echo(f"reproducing {reproduce_mod.DAY} on {reproduce_mod.COLLECTOR}\n")
+        if not reproduce_mod.run_pipeline(repo, config_path, typer.echo):
+            raise typer.Exit(code=1)
+
+    elapsed = (time.monotonic() - started) / 60
+    fresh = reproduce_mod.collect_numbers(cfg)
+
+    if update_fixture:
+        written = reproduce_mod.write_fixture(repo, fresh)
+        typer.echo(f"\nrecorded baseline -> {written}")
+        for key in reproduce_mod.EXACT_KEYS:
+            if key in fresh:
+                typer.echo(f"  {key:<16} {fresh[key]:>12,}")
+        return
+
+    fixture = reproduce_mod.load_fixture(repo)
+    if fixture is None:
+        typer.echo(f"no fixture at {reproduce_mod.fixture_path(repo)}; use --update-fixture first")
+        raise typer.Exit(code=1)
+
+    result = reproduce_mod.compare(fresh, fixture)
+
+    typer.echo("\n=== REPRODUCE ===")
+    typer.echo(f"date            : {reproduce_mod.DAY}, collector {reproduce_mod.COLLECTOR}")
+    typer.echo(
+        f"wall clock      : {elapsed:.1f} minutes (budget {reproduce_mod.TIME_BUDGET_MINUTES})"
+    )
+    for key in reproduce_mod.EXACT_KEYS:
+        if key in fixture:
+            got = fresh.get(key)
+            shown = f"{got:,}" if isinstance(got, int) else str(got)
+            typer.echo(f"  {key:<16} {shown:>14}  {'ok' if got == fixture[key] else 'DIFFERS'}")
+
+    rates = fresh.get("flag_rates", {})
+    if rates:
+        typer.echo("  normalization drop rates:")
+        for flag in sorted(rates):
+            same = fixture.get("flag_rates", {}).get(flag) == rates[flag]
+            typer.echo(f"    {flag:<14} {rates[flag]:>14.6f}  {'ok' if same else 'DIFFERS'}")
+
+    within_budget = skip_pipeline or elapsed < reproduce_mod.TIME_BUDGET_MINUTES
+    typer.echo(f"\nnumbers         : {'MATCH' if result.matches else 'DIFFER'}")
+    typer.echo(f"time            : {'PASS' if within_budget else 'MISS'}")
+    if not result.matches:
+        typer.echo("\ndifferences:")
+        for line in result.problems:
+            typer.echo(f"  {line}")
+        raise typer.Exit(code=1)
+    if not within_budget:
         raise typer.Exit(code=1)

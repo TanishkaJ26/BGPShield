@@ -1,7 +1,5 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { loadJson, thousands } from '../../lib/data';
+import { thousands } from '../../lib/data';
+import { readExport } from '../../lib/load';
 
 type IncidentRow = {
   id: string;
@@ -58,18 +56,9 @@ const OUTCOMES: Record<string, { label: string; tone: string; meaning: string }>
   },
 };
 
-export default function Incidents() {
-  const [payload, setPayload] = useState<IncidentsPayload | null>(null);
-  const [loaded, setLoaded] = useState(false);
+export default async function Incidents() {
+  const payload = await readExport<IncidentsPayload>('incidents.json');
 
-  useEffect(() => {
-    loadJson<IncidentsPayload>('incidents.json').then((p) => {
-      setPayload(p);
-      setLoaded(true);
-    });
-  }, []);
-
-  if (!loaded) return <p className="meta">Loading measurements…</p>;
   if (!payload) {
     return (
       <p className="missing">
