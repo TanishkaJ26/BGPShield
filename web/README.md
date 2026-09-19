@@ -47,3 +47,9 @@ NEXT_PUBLIC_BASE_PATH=/Hijax npm run build
 
 If a JSON file is missing, the page says so and names the command that produces it. It never
 shows a zero, because a zero reads as a measurement.
+
+## Live deployment
+
+`.github/workflows/daily-site.yml` rebuilds and deploys this site to GitHub Pages every day
+with fresh data from one collector. The footer of every page names that collector and the
+snapshot date, so the daily numbers are never mistaken for the six-collector study.

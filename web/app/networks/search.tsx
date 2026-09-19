@@ -65,6 +65,7 @@ export default function NetworkSearch({
       <input
         type="search"
         placeholder="AS9498, IN, apnic…"
+        data-cursor="link"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -74,7 +75,7 @@ export default function NetworkSearch({
         aria-label="Search networks"
       />
       <p className="meta">
-        <label>
+        <label className="toggle">
           <input
             type="checkbox"
             checked={publishersOnly}
@@ -101,6 +102,7 @@ export default function NetworkSearch({
         </p>
       ) : null}
 
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -117,17 +119,17 @@ export default function NetworkSearch({
         <tbody>
           {matches.slice(0, shown).map((row) => (
             <tr key={row.asn}>
-              <td className="num">AS{row.asn}</td>
+              <td className="num asn">AS{row.asn}</td>
               <td>{row.country ?? '—'}</td>
               <td className="num">{thousands(row.cone_size)}</td>
               <td className="num">{thousands(row.rank)}</td>
               <td>
                 {row.publishes_aspa ? (
-                  <span className="yes">
-                    yes{row.providers_listed ? ` (${row.providers_listed})` : ''}
+                  <span className="pill yes">
+                    {row.providers_listed ? `${row.providers_listed} providers` : 'yes'}
                   </span>
                 ) : (
-                  <span className="no">no</span>
+                  <span className="pill no">none</span>
                 )}
               </td>
               <td className="num">{thousands(row.routes_valid)}</td>
@@ -137,10 +139,11 @@ export default function NetworkSearch({
           ))}
         </tbody>
       </table>
+      </div>
 
       {shown < matches.length ? (
         <p style={{ marginTop: 16 }}>
-          <button onClick={() => setShown((n) => n + PAGE_SIZE)}>
+          <button data-cursor="link" onClick={() => setShown((n) => n + PAGE_SIZE)}>
             Show {Math.min(PAGE_SIZE, matches.length - shown)} more
           </button>
         </p>

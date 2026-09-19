@@ -1,180 +1,246 @@
-import { AdoptionPayload, SummaryPayload, percent, thousands } from '../lib/data';
-import { readExport } from '../lib/load';
+import Link from 'next/link';
 
-/** Labels for the path-coverage positions, in the order that tells the story. */
-const COVERAGE_ORDER: [string, string][] = [
-  ['any', 'A publisher anywhere on the path'],
-  ['transit', 'A publisher somewhere in transit'],
-  ['neighbour', "The collector's own peer publishes"],
-  ['origin', 'The origin publishes'],
-  ['adjacent_pair', 'Two publishers next to each other'],
-  ['all_hops', 'Every hop covered'],
-];
+import Counter from '../components/Counter';
+import Kinetic from '../components/Kinetic';
+import Reveal from '../components/Reveal';
+import RouteStory from '../components/RouteStory';
+import { AdoptionPayload, RegionalPayload, SummaryPayload, thousands } from '../lib/data';
+import { readExport } from '../lib/load';
 
 export default async function Overview() {
   const summary = await readExport<SummaryPayload>('summary.json');
   const adoption = await readExport<AdoptionPayload>('aspa_adoption.json');
+  const regional = await readExport<RegionalPayload>('regional.json');
 
   const global = summary?.adoption?.['global'];
   const coverage = summary?.path_coverage;
   const transit = summary?.largest_transit_publishing;
+  const peak = adoption?.by_day?.length ? Math.max(...adoption.by_day.map((p) => p.aspas)) : 0;
+
+  const ticker = [
+    global ? `${thousands(global.routed_networks)} routed networks` : null,
+    global ? `${thousands(global.publishers)} publish an ASPA record` : null,
+    adoption ? `${thousands(adoption.snapshots)} weekly RPKI snapshots` : null,
+    peak ? `${thousands(peak)} records at peak` : null,
+    'six collectors · five cities · none in India',
+    'passive data only · nothing is probed',
+    'every number reproducible with hijax reproduce',
+  ].filter(Boolean) as string[];
 
   return (
     <>
-      <h2>What this measures</h2>
-      <p>
-        Two mechanisms are meant to make BGP routing harder to abuse. <strong>RPKI origin
-        validation</strong> checks that the network announcing a block of addresses is allowed
-        to. <strong>ASPA</strong> goes further and checks that the path a route travelled makes
-        sense, by having each network publish who its providers are. This site reports how far
-        each has actually spread, whether what has been published is correct, and what it would
-        have blocked.
-      </p>
-
-      {global ? (
-        <div className="headline">
-          <div className="stat">
-            <div className="value">{percent(global.share_of_routed)}</div>
-            <div className="label">
-              of routed networks publish an ASPA record ({thousands(global.publishers)} of{' '}
-              {thousands(global.routed_networks)})
-            </div>
+      <section className="hero">
+        <div className="shell">
+          <p className="eyebrow">RPKI &amp; ASPA · measured, not modelled</p>
+          <Kinetic
+            as="h1"
+            className="display"
+            text="Nobody vouched for this route."
+            accent="vouched"
+            startDelay={120}
+          />
+          <div className="hero-foot">
+            <p className="lede" style={{ margin: 0 }}>
+              BGP moves every packet on the internet along paths that no one has to justify.
+              Two mechanisms are meant to change that. Scroll to follow a single route and see
+              how far they have actually got.
+            </p>
+            <span className="scroll-hint">
+              <i aria-hidden="true" /> scroll
+            </span>
           </div>
-          {coverage ? (
-            <>
-              <div className="stat">
-                <div className="value">{percent(coverage['any'], 1)}</div>
-                <div className="label">of routes touch a publisher somewhere</div>
-              </div>
-              <div className="stat">
-                <div className="value">{percent(coverage['adjacent_pair'], 1)}</div>
-                <div className="label">
-                  contain two <em>adjacent</em> publishers — the first point at which ASPA can
-                  judge a hop
-                </div>
-              </div>
-            </>
-          ) : null}
         </div>
-      ) : (
-        <p className="missing">
-          No summary has been exported yet. Run <code>hijax export</code> after ingesting and
-          validating a date.
-        </p>
-      )}
+      </section>
 
-      <div className="caution">
-        <strong>The two numbers above must be read together.</strong>
-        An ASPA record can only settle a hop when the networks on <em>both</em> sides of it
-        publish. So &ldquo;touches a publisher&rdquo; counts routes where the mechanism is
-        present but usually cannot yet reach a verdict, and quoting it alone overstates what is
-        deployable today by roughly seven times.
-      </div>
-
-      {coverage ? (
-        <>
-          <h2>What adoption actually buys</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Where the publishers sit</th>
-                <th className="num">Share of routes</th>
-                <th style={{ width: '38%' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {COVERAGE_ORDER.filter(([key]) => key in coverage).map(([key, label]) => (
-                <tr key={key}>
-                  <td>{label}</td>
-                  <td className="num">{percent(coverage[key], 2)}</td>
-                  <td>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${Math.max(coverage[key] * 100 * 2, 0.4)}%`,
-                        opacity: key === 'adjacent_pair' || key === 'all_hops' ? 1 : 0.45,
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="meta">
-            The gap between the first row and the fifth is the whole story of partial
-            deployment: adoption is scattered, and scattered adoption composes badly, because
-            value appears only where two publishers happen to land next to each other.
-          </p>
-        </>
+      {ticker.length ? (
+        <div className="ticker" aria-hidden="true">
+          <div className="ticker-track">
+            {[...ticker, ...ticker].map((item, index) => (
+              <span key={`${item}-${index}`}>{item}</span>
+            ))}
+          </div>
+        </div>
       ) : null}
 
-      {transit ? (
-        <>
-          <h2>Where adoption is missing most</h2>
-          <p>
-            Of the {transit.examined} largest transit networks registered in {transit.country} by
-            customer cone, <strong>{transit.publishing}</strong>{' '}
-            {transit.publishing === 1 ? 'publishes' : 'publish'} an ASPA record. A record from a
-            large transit network covers every hop into and out of it, and so protects everything
-            in its customer cone; a record from a network at the edge covers one hop. See the{' '}
-            <a href="region/">Region</a> page.
-          </p>
-        </>
+      {coverage ? (
+        <RouteStory shares={coverage} />
+      ) : (
+        <section className="band">
+          <div className="shell">
+            <p className="missing">
+              No summary has been exported yet. Run <code>hijax export</code> after ingesting and
+              validating a date.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {global && coverage ? (
+        <section className="band">
+          <div className="shell">
+            <Reveal>
+              <p className="eyebrow">The three numbers</p>
+              <h2 className="display" style={{ maxWidth: '14ch' }}>
+                Presence is not <em>protection</em>.
+              </h2>
+            </Reveal>
+            <Reveal delay={120}>
+              <div className="figure" style={{ marginTop: '3rem' }}>
+                <div>
+                  <div className="v route">
+                    <Counter value={global.share_of_routed * 100} decimals={2} suffix="%" />
+                  </div>
+                  <div className="l">
+                    of routed networks publish an ASPA record — {thousands(global.publishers)} of{' '}
+                    {thousands(global.routed_networks)}
+                  </div>
+                </div>
+                <div>
+                  <div className="v">
+                    <Counter value={coverage['any'] * 100} decimals={1} suffix="%" />
+                  </div>
+                  <div className="l">of routes touch a publisher somewhere on the path</div>
+                </div>
+                <div>
+                  <div className="v vouched">
+                    <Counter value={coverage['adjacent_pair'] * 100} decimals={1} suffix="%" />
+                  </div>
+                  <div className="l">contain a hop with publishers on both sides</div>
+                </div>
+                <div>
+                  <div className="v gap">
+                    <Counter value={coverage['all_hops'] * 100} decimals={2} suffix="%" />
+                  </div>
+                  <div className="l">are vouched for end to end</div>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={200}>
+              <div className="note">
+                <strong>Quoting the second number alone overstates it by about sevenfold.</strong>
+                An ASPA record can only settle a hop when the networks on both sides of it
+                publish. Adoption is scattered, and scattered adoption composes badly: value
+                appears only where two publishers happen to land beside each other.
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      ) : null}
+
+      {transit && regional ? (
+        <section className="band">
+          <div className="shell">
+            <Reveal>
+              <p className="eyebrow">Where it is missing most</p>
+              <h2 className="display" style={{ maxWidth: '16ch' }}>
+                The biggest networks in {transit.country} publish <em>nothing</em>.
+              </h2>
+              <p className="lede" style={{ marginTop: '1.6rem' }}>
+                Of the {transit.examined} largest by customer cone,{' '}
+                {transit.publishing === 0 ? 'none' : transit.publishing}{' '}
+                {transit.publishing === 1 ? 'publishes' : 'publish'}. A record from a large
+                transit network protects everything in its cone; one from the edge covers a
+                single hop. Adoption is happening where it helps least.
+              </p>
+              <p style={{ marginTop: '1.4rem' }}>
+                <Link
+                  href="/region/"
+                  data-cursor="link"
+                  className="mono"
+                  style={{
+                    fontSize: '0.78rem',
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    borderBottom: '1px solid currentColor',
+                  }}
+                >
+                  Follow the rail →
+                </Link>
+              </p>
+            </Reveal>
+          </div>
+        </section>
       ) : null}
 
       {adoption?.by_day?.length ? (
-        <>
-          <h2>Adoption over time</h2>
-          <p className="meta">
-            {thousands(adoption.snapshots)} snapshots, latest {adoption.latest_snapshot}. ASPA
-            records published worldwide, from the first day the data exists.
-          </p>
-          <Sparkline points={adoption.by_day} />
-        </>
+        <section className="band">
+          <div className="shell">
+            <Reveal>
+              <p className="eyebrow">Growth</p>
+              <h2 className="display">
+                From one record to <em>{thousands(peak)}</em>.
+              </h2>
+              <p className="meta" style={{ marginTop: '1rem' }}>
+                {thousands(adoption.snapshots)} weekly snapshots, latest {adoption.latest_snapshot}
+                . Every ASPA record published worldwide, from the first day any existed.
+              </p>
+            </Reveal>
+            <Reveal delay={140}>
+              <Growth points={adoption.by_day} />
+            </Reveal>
+          </div>
+        </section>
       ) : null}
 
       {summary?.caveats?.length ? (
-        <div className="caution">
-          <strong>Limits that apply to every number on this site</strong>
-          <ul>
-            {summary.caveats.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
+        <section className="band">
+          <div className="shell">
+            <Reveal>
+              <div className="note">
+                <strong>Limits that apply to every number on this site</strong>
+                <ul>
+                  {summary.caveats.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+          </div>
+        </section>
       ) : null}
     </>
   );
 }
 
-/** A plain inline chart. The figures in the paper are generated separately by `hijax report`. */
-function Sparkline({ points }: { points: { snapshot_date: string; aspas: number }[] }) {
+/** The growth curve, drawn as a single stroke. The paper figures come from `hijax report`. */
+function Growth({ points }: { points: { snapshot_date: string; aspas: number }[] }) {
   const sorted = [...points].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
   const max = Math.max(...sorted.map((p) => p.aspas), 1);
-  const width = 720;
-  const height = 180;
-  const path = sorted
+  const width = 1200;
+  const height = 320;
+  const line = sorted
     .map((p, i) => {
       const x = (i / Math.max(sorted.length - 1, 1)) * width;
-      const y = height - (p.aspas / max) * height;
+      const y = height - (p.aspas / max) * height * 0.9;
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(' ');
 
   return (
-    <figure style={{ margin: '12px 0' }}>
+    <figure style={{ margin: '2.6rem 0 0' }}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
-        height="180"
+        height="320"
+        preserveAspectRatio="none"
         role="img"
         aria-label={`ASPA records published over time, rising to ${max.toLocaleString('en-US')}`}
+        style={{ overflow: 'visible' }}
       >
-        <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" />
+        <line x1="0" y1={height} x2={width} y2={height} stroke="var(--ink)" strokeWidth="1" />
+        <path
+          d={line}
+          fill="none"
+          stroke="var(--route)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          className="growth-line"
+        />
       </svg>
-      <figcaption className="meta">
-        {sorted[0].snapshot_date} to {sorted[sorted.length - 1].snapshot_date}. Peak{' '}
-        {max.toLocaleString('en-US')} records. The vertical axis starts at zero.
+      <figcaption className="meta" style={{ marginTop: '0.8rem' }}>
+        {sorted[0].snapshot_date} to {sorted[sorted.length - 1].snapshot_date}. The vertical
+        axis starts at zero.
       </figcaption>
     </figure>
   );

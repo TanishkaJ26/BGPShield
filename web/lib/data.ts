@@ -27,6 +27,8 @@ export type TransitRow = {
 
 export type RegionalPayload = {
   snapshot_date: string;
+  /** Which ASPA snapshot describes this routing date. They are weekly, routes are daily. */
+  aspa_snapshot_date?: string | null;
   metadata_month: string;
   country: string;
   regions: RegionRow[];
@@ -49,6 +51,7 @@ export type NetworkRow = {
 
 export type NetworksPayload = {
   snapshot_date: string;
+  aspa_snapshot_date?: string | null;
   metadata_month: string;
   networks: number;
   selection: string;
@@ -57,6 +60,10 @@ export type NetworksPayload = {
 };
 
 export type SummaryPayload = {
+  snapshot_date?: string;
+  aspa_snapshot_date?: string | null;
+  /** Vantage points that fed this export. The write-up uses six; a daily refresh uses one. */
+  collectors?: string[];
   adoption?: Record<
     string,
     { routed_networks: number; publishers: number; share_of_routed: number }

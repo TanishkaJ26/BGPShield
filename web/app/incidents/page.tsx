@@ -1,3 +1,6 @@
+import Counter from '../../components/Counter';
+import Kinetic from '../../components/Kinetic';
+import Reveal from '../../components/Reveal';
 import { thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
 
@@ -14,7 +17,6 @@ type IncidentRow = {
   culprit_asn: number | null;
   source: string;
 };
-
 type IncidentsPayload = {
   collectors: string[];
   summary: Record<string, number | null>;
@@ -22,38 +24,13 @@ type IncidentsPayload = {
   notes: string[];
 };
 
-/** What each outcome means, in words rather than a status code. */
 const OUTCOMES: Record<string, { label: string; tone: string; meaning: string }> = {
-  detected: {
-    label: 'detected',
-    tone: 'yes',
-    meaning: 'The detector named the culprit in the incident window.',
-  },
-  missed: {
-    label: 'missed',
-    tone: 'no',
-    meaning: 'The leak was visible in the data and the detector did not find it.',
-  },
-  not_applicable: {
-    label: 'not applicable',
-    tone: '',
-    meaning: 'Not a route leak, so a path-based detector could never have found it.',
-  },
-  not_visible: {
-    label: 'not visible',
-    tone: '',
-    meaning: 'The collectors used never saw this leak. That is about vantage points, not the detector.',
-  },
-  culprit_absent: {
-    label: 'culprit absent',
-    tone: '',
-    meaning: 'The culprit network never appeared at these collectors during the window.',
-  },
-  no_data: {
-    label: 'no data',
-    tone: '',
-    meaning: 'The archive had nothing for that window.',
-  },
+  detected: { label: 'detected', tone: 'detected', meaning: 'The detector named the culprit inside the incident window.' },
+  missed: { label: 'missed', tone: 'missed', meaning: 'The leak was visible in the data and the detector did not find it.' },
+  not_applicable: { label: 'not applicable', tone: 'other', meaning: 'Not a route leak, so a path-based detector could never have found it.' },
+  not_visible: { label: 'not visible', tone: 'other', meaning: 'These collectors never saw this leak. That is a fact about where the vantage points are, not about the detector.' },
+  culprit_absent: { label: 'culprit absent', tone: 'other', meaning: 'The culprit network never appeared at these collectors during the window.' },
+  no_data: { label: 'no data', tone: 'other', meaning: 'The archive held nothing for that window.' },
 };
 
 export default async function Incidents() {
@@ -61,10 +38,14 @@ export default async function Incidents() {
 
   if (!payload) {
     return (
-      <p className="missing">
-        No incident results have been exported yet. Run <code>hijax incidents</code> and then{' '}
-        <code>hijax export</code>.
-      </p>
+      <section className="band" style={{ paddingTop: 160 }}>
+        <div className="shell">
+          <p className="missing">
+            No incident results have been exported yet. Run <code>hijax incidents</code> and then{' '}
+            <code>hijax export</code>.
+          </p>
+        </div>
+      </section>
     );
   }
 
@@ -72,101 +53,111 @@ export default async function Incidents() {
 
   return (
     <>
-      <h2>Real incidents, and whether the detector found them</h2>
-      <p>
-        Each entry is a documented routing incident, with every field taken from a primary
-        post-mortem. The detector was pointed at the archive window for each one, using the{' '}
-        {payload.collectors.join(' and ')} collector
-        {payload.collectors.length === 1 ? '' : 's'}.
-      </p>
-
-      <div className="headline">
-        <div className="stat">
-          <div className="value">{thousands(s.curated_incidents as number)}</div>
-          <div className="label">curated incidents</div>
-        </div>
-        <div className="stat">
-          <div className="value">{thousands(s.judged as number)}</div>
-          <div className="label">that this detector could be judged on</div>
-        </div>
-        <div className="stat">
-          <div className="value">
-            {thousands(s.detected as number)} / {thousands(s.judged as number)}
-          </div>
-          <div className="label">detected</div>
-        </div>
-      </div>
-
-      <div className="caution">
-        <strong>Two of two is a count, not a recall estimate.</strong>
-        Of {thousands(s.curated_incidents as number)} well-documented incidents, only{' '}
-        {thousands(s.judged as number)} could be judged: {thousands(s.not_applicable as number)}{' '}
-        were not route leaks at all, and {thousands(s.not_visible as number)} were never visible
-        from these vantage points. The detector found both leaks it was in a position to see.
-        That ratio is itself the result — most publicly documented BGP incidents are either not
-        route leaks, or invisible from any given vantage point.
-      </div>
-
-      {payload.incidents.map((incident) => {
-        const outcome = OUTCOMES[incident.outcome] ?? {
-          label: incident.outcome,
-          tone: '',
-          meaning: '',
-        };
-        return (
-          <section key={incident.id} style={{ marginTop: 28 }}>
-            <h3>
-              {incident.title || incident.id}{' '}
-              <span className={outcome.tone}>— {outcome.label}</span>
-            </h3>
-            <p className="meta">
-              {incident.kind.replace(/_/g, ' ')}
-              {incident.culprit_asn ? ` · AS${incident.culprit_asn}` : ''}
-              {incident.source ? (
-                <>
-                  {' · '}
-                  <a href={incident.source} rel="noreferrer noopener" target="_blank">
-                    source
-                  </a>
-                </>
-              ) : null}
+      <section className="hero" style={{ minHeight: '80svh' }}>
+        <div className="shell">
+          <p className="eyebrow">RQ3 · seven real incidents</p>
+          <Kinetic
+            as="h1"
+            className="display"
+            text="Most incidents cannot be judged at all."
+            accent="judged"
+            startDelay={120}
+          />
+          <div className="hero-foot">
+            <p className="lede" style={{ margin: 0 }}>
+              Each entry is a documented routing incident, every field taken from a primary
+              post-mortem. The detector was pointed at the archive window for each one, from the{' '}
+              {payload.collectors.join(' and ')} collector{payload.collectors.length === 1 ? '' : 's'}.
             </p>
-            <p>{outcome.meaning}</p>
-            {incident.routes_examined ? (
-              <table>
-                <tbody>
-                  <tr>
-                    <td>Announcements examined</td>
-                    <td className="num">{thousands(incident.routes_examined)}</td>
-                  </tr>
-                  <tr>
-                    <td>Distinct paths containing the culprit</td>
-                    <td className="num">{thousands(incident.paths_with_culprit)}</td>
-                  </tr>
-                  <tr>
-                    <td>Leak sightings on those paths</td>
-                    <td className="num">{thousands(incident.candidates_found)}</td>
-                  </tr>
-                  <tr>
-                    <td>Sightings naming an expected culprit</td>
-                    <td className="num">{thousands(incident.culprit_flagged)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            ) : null}
-            {incident.note ? <p className="meta">{incident.note}</p> : null}
-          </section>
-        );
-      })}
+          </div>
+        </div>
+      </section>
 
-      <div className="caution">
-        <strong>How to read these outcomes</strong>
-        <ul>
-          {payload.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      </div>
+      <section className="band" style={{ paddingTop: 0 }}>
+        <div className="shell">
+          <Reveal>
+            <div className="figure">
+              <div>
+                <div className="v"><Counter value={(s.curated_incidents as number) ?? 0} /></div>
+                <div className="l">curated incidents</div>
+              </div>
+              <div>
+                <div className="v gap"><Counter value={(s.judged as number) ?? 0} /></div>
+                <div className="l">this detector could be judged on</div>
+              </div>
+              <div>
+                <div className="v vouched">
+                  <Counter value={(s.detected as number) ?? 0} /> / {thousands(s.judged as number)}
+                </div>
+                <div className="l">detected</div>
+              </div>
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="note">
+              <strong>Two of two is a count, not a recall estimate.</strong>
+              Of {thousands(s.curated_incidents as number)} well-documented incidents, only{' '}
+              {thousands(s.judged as number)} could be judged: {thousands(s.not_applicable as number)}{' '}
+              were not route leaks at all, and {thousands(s.not_visible as number)} were never
+              visible from these vantage points. That ratio is itself the result.
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="band">
+        <div className="shell">
+          <div className="tl">
+            {payload.incidents.map((incident, index) => {
+              const outcome = OUTCOMES[incident.outcome] ?? { label: incident.outcome, tone: 'other', meaning: '' };
+              const date = incident.id.slice(0, 10);
+              return (
+                <Reveal key={incident.id} delay={index * 50}>
+                  <article className="tl-row" data-cursor="link">
+                    <div className="tl-date">{date}</div>
+                    <div>
+                      <h3 className="tl-title">{incident.title || incident.id}</h3>
+                      <div className="tl-body">
+                        <span className="mono" style={{ fontSize: '0.74rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+                          {incident.kind.replace(/_/g, ' ')}
+                          {incident.culprit_asn ? ` · AS${incident.culprit_asn}` : ''}
+                        </span>
+                        <p style={{ margin: '0.5rem 0 0' }}>{outcome.meaning}</p>
+                        {incident.routes_examined ? (
+                          <dl className="tl-kv">
+                            <div><b>{thousands(incident.routes_examined)}</b> announcements examined</div>
+                            <div><b>{thousands(incident.paths_with_culprit)}</b> distinct paths with the culprit</div>
+                            <div><b>{thousands(incident.candidates_found)}</b> leak sightings on them</div>
+                            <div><b>{thousands(incident.culprit_flagged)}</b> naming an expected culprit</div>
+                          </dl>
+                        ) : null}
+                        {incident.note ? <p className="meta" style={{ marginTop: '0.6rem' }}>{incident.note}</p> : null}
+                        {incident.source ? (
+                          <a href={incident.source} rel="noreferrer noopener" target="_blank" className="mono" style={{ display: 'inline-block', marginTop: '0.7rem', fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', borderBottom: '1px solid currentColor' }}>
+                            source ↗
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className={`verdict v-${outcome.tone}`}>{outcome.label}</span>
+                  </article>
+                </Reveal>
+              );
+            })}
+          </div>
+
+          <Reveal>
+            <div className="note">
+              <strong>How to read these outcomes</strong>
+              <ul>
+                {payload.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+      </section>
     </>
   );
 }

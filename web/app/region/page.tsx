@@ -1,4 +1,8 @@
-import { RegionalPayload, percent, thousands } from '../../lib/data';
+import Counter from '../../components/Counter';
+import Kinetic from '../../components/Kinetic';
+import Rail from '../../components/Rail';
+import Reveal from '../../components/Reveal';
+import { RegionalPayload, thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
 
 export default async function Region() {
@@ -6,111 +10,109 @@ export default async function Region() {
 
   if (!payload) {
     return (
-      <p className="missing">
-        No regional comparison has been exported yet. Run <code>hijax export</code> after
-        ingesting routes and topology metadata.
-      </p>
+      <section className="band" style={{ paddingTop: 160 }}>
+        <div className="shell">
+          <p className="missing">
+            No regional comparison has been exported yet. Run <code>hijax export</code> after
+            ingesting routes and topology metadata.
+          </p>
+        </div>
+      </section>
     );
   }
 
   const ranked = payload.largest_transit;
   const publishing = ranked.filter((row) => row.publishes_aspa);
-  const firstPublisher = ranked.find((row) => row.publishes_aspa);
+  const first = ranked.find((row) => row.publishes_aspa);
   const largest = ranked[0];
 
   return (
     <>
-      <h2>{payload.country} and the APNIC region against the world</h2>
-      <p className="meta">
-        Snapshot {payload.snapshot_date}, topology data from {payload.metadata_month}.
-      </p>
+      <section className="hero" style={{ minHeight: '80svh' }}>
+        <div className="shell">
+          <p className="eyebrow">RQ4 · {payload.country} against its region and the world</p>
+          <Kinetic
+            as="h1"
+            className="display"
+            text="Ahead of its region. Behind the world."
+            accent="Behind"
+            startDelay={120}
+          />
+          <p className="meta" style={{ marginTop: '1.4rem' }}>
+            Snapshot {payload.snapshot_date}, topology from {payload.metadata_month}
+            {payload.aspa_snapshot_date && payload.aspa_snapshot_date !== payload.snapshot_date
+              ? `, ASPA records from ${payload.aspa_snapshot_date}`
+              : ''}
+            .
+          </p>
+        </div>
+      </section>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Region</th>
-            <th className="num">Routed networks</th>
-            <th className="num">Publishing ASPA</th>
-            <th className="num">Share</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payload.regions.map((row) => (
-            <tr key={row.region}>
-              <td>{row.region}</td>
-              <td className="num">{thousands(row.routed_networks)}</td>
-              <td className="num">{thousands(row.publishers_that_route)}</td>
-              <td className="num">{percent(row.share_of_routed)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="meta">
-        The denominator is networks seen <em>originating a route</em>. A network that announces
-        nothing cannot meaningfully publish a record about its providers, and counting the tens
-        of thousands of dormant allocations would deflate every share for no reason.
-      </p>
+      <section className="band" style={{ paddingTop: 0 }}>
+        <div className="shell">
+          <Reveal>
+            <div className="figure">
+              {payload.regions.map((row) => (
+                <div key={row.region}>
+                  <div className={`v ${row.region === 'global' ? 'route' : ''}`}>
+                    <Counter value={row.share_of_routed * 100} decimals={2} suffix="%" />
+                  </div>
+                  <div className="l">
+                    <span className="mono" style={{ textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '0.66rem', display: 'block', marginBottom: '0.3rem', color: 'var(--ink)' }}>
+                      {row.region}
+                    </span>
+                    {thousands(row.publishers_that_route)} publishing of{' '}
+                    {thousands(row.routed_networks)} routed
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <p style={{ marginTop: '2rem' }}>
+              The denominator is networks seen <strong>originating a route</strong>. A network
+              that announces nothing cannot meaningfully publish a record about its providers,
+              and counting the tens of thousands of dormant allocations would deflate every share
+              for no reason.
+            </p>
+          </Reveal>
+        </div>
+      </section>
 
-      <h2>The finding that matters is not the share</h2>
-      <p>
-        Of the {ranked.length} largest networks registered in {payload.country} by customer
-        cone, <strong>{publishing.length}</strong>{' '}
-        {publishing.length === 1 ? 'publishes' : 'publish'} an ASPA record.
-        {largest && firstPublisher ? (
-          <>
-            {' '}
-            The largest one that does is <strong>AS{firstPublisher.asn}</strong>, with a customer
-            cone of {thousands(firstPublisher.cone_size)} and a global rank of{' '}
-            {thousands(firstPublisher.rank)} — while the largest network in the country,
-            AS{largest.asn}, has a cone of {thousands(largest.cone_size)} and ranks{' '}
-            {thousands(largest.rank)} in the world.
-          </>
-        ) : null}
-      </p>
-      <p>
-        That is the opposite of the deployment order that would help. ASPA validation needs{' '}
-        <em>adjacent</em> publishers to settle a hop, so a record published by a large transit
-        network covers every hop into and out of it, and therefore protects everything behind
-        it. A record published by a network at the edge covers one hop.
-      </p>
+      <Rail rows={ranked} country={payload.country}>
+        <p className="eyebrow">The finding that matters is not the share</p>
+        <h2 className="display" style={{ maxWidth: '16ch' }}>
+          The biggest networks publish <em>nothing</em>.
+        </h2>
+        <p className="lede" style={{ marginTop: '1.2rem' }}>
+          {ranked.length} largest by customer cone, left to right.{' '}
+          {publishing.length === 0 ? 'None publishes' : `${publishing.length} publish${publishing.length === 1 ? 'es' : ''}`}.
+          {first && largest
+            ? ` The largest that does is AS${first.asn}, cone ${thousands(first.cone_size)}, global rank ${thousands(first.rank)} — while AS${largest.asn} ranks ${thousands(largest.rank)} in the world.`
+            : ''}
+        </p>
+      </Rail>
 
-      <table>
-        <thead>
-          <tr>
-            <th className="num">#</th>
-            <th>AS</th>
-            <th className="num">Customer cone</th>
-            <th className="num">Global rank</th>
-            <th>Publishes ASPA</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranked.map((row, index) => (
-            <tr key={row.asn}>
-              <td className="num">{index + 1}</td>
-              <td className="num">AS{row.asn}</td>
-              <td className="num">{thousands(row.cone_size)}</td>
-              <td className="num">{thousands(row.rank)}</td>
-              <td>
-                {row.publishes_aspa ? (
-                  <span className="yes">yes</span>
-                ) : (
-                  <span className="no">no</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="caution">
-        <strong>Two limits travel with every number on this page</strong>
-        <ul>
-          {payload.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      </div>
+      <section className="band">
+        <div className="shell">
+          <Reveal>
+            <p>
+              That is the opposite of the deployment order that would help. ASPA needs{' '}
+              <strong>adjacent</strong> publishers to settle a hop, so a record from a large
+              transit network covers every hop into and out of it and protects everything behind
+              it. A record from a network at the edge covers one hop.
+            </p>
+            <div className="note">
+              <strong>Two limits travel with every number on this page</strong>
+              <ul>
+                {payload.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+      </section>
     </>
   );
 }

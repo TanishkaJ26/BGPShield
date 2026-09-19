@@ -1,0 +1,145 @@
+name: Daily site
+
+# Refresh the dashboard's numbers every day and publish it (plan Section 11, Phase 7).
+#
+# The archives this project reads publish daily, so "live" here means daily, not real-time.
+# The RPKI side is cheap. The BGP side is the constraint: the six-collector study is 818 MB
+# and an hour, which is not a daily job for a hosted runner. One collector is - rrc06, the
+# smallest at about 43 MB, the same one `hijax reproduce` uses - so that is what the site
+# refreshes from, and the site says so on every page rather than implying the study's scope.
+#
+# Runs after the daily RPKI job so the two never race to commit web/public/data. Everything
+# under data/ is gitignored and lives only for the run; only the small JSON the site reads
+# is committed, inside the 5 MB budget the plan sets.
+
+on:
+  workflow_run:
+    workflows: ["Daily RPKI snapshot"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Routing snapshot date to ingest (YYYY-MM-DD). Defaults to yesterday UTC."
+        required: false
+        type: string
+      collector:
+        description: "Collector to ingest."
+        required: false
+        default: rrc06
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-site
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    # A manual run always goes ahead; a chained run only if the RPKI job succeeded.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install (locked)
+        run: uv sync --locked
+
+      - name: Choose the snapshot
+        id: pick
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            day="${{ inputs.date }}"
+          else
+            day="$(date -u -d yesterday +%F)"
+          fi
+          collector="${{ inputs.collector }}"
+          [ -z "$collector" ] && collector="rrc06"
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+          echo "collector=$collector" >> "$GITHUB_OUTPUT"
+          echo "month=$(date -u -d "$day -1 month" +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      # The delegated-stats files and the month's CAIDA data change slowly; keep them for a
+      # week so the archives are not asked for the same files every day (plan Section 16).
+      - name: Cache slow-moving inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/raw/delegated
+            data/raw/caida
+          key: inputs-${{ runner.os }}-${{ steps.pick.outputs.week }}
+          restore-keys: |
+            inputs-${{ runner.os }}-
+
+      - name: RPKI snapshot
+        run: uv run hijax ingest-rpki --date "${{ steps.pick.outputs.day }}"
+
+      - name: Topology for the month before
+        run: uv run hijax ingest-meta --month "${{ steps.pick.outputs.month }}"
+
+      - name: One collector's routing table
+        run: uv run hijax ingest-bgp --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+
+      - name: Validate and detect
+        run: |
+          uv run hijax validate --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+          uv run hijax detect --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+
+      - name: Export the dashboard data
+        run: |
+          uv run hijax adoption --export web/public/data/aspa_adoption.json
+          uv run hijax export
+
+      - name: Commit the data if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          if git diff --quiet -- web/public/data; then
+            echo "no change to publish"
+          else
+            git add web/public/data
+            git commit -m "chore(data): dashboard through ${{ steps.pick.outputs.day }} (${{ steps.pick.outputs.collector }})"
+            git push origin HEAD:main
+          fi
+
+      # A project site is served from /<repo>, so the base path comes from the repository
+      # name rather than being typed in. Nothing else in the build depends on where it lives.
+      - name: Build the site
+        working-directory: web
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/out
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

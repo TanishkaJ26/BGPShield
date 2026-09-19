@@ -1134,3 +1134,22 @@ gives the real comparison:
 
 Both match the Phase 5 figures exactly. **The published recall numbers stand.** The truncation
 only ever bit under concurrency, and the incident windows had been fetched serially.
+
+
+## Deploying with daily data (2026-09-19)
+
+`.github/workflows/daily-site.yml` refreshes the dashboard every day and publishes it to
+GitHub Pages. It ingests yesterday's RPKI snapshot, the previous month's topology, and one
+collector's routing table - rrc06, about 43 MB - then validates, detects, exports and builds.
+About 66 MB of downloads and a few minutes of compute per day.
+
+**Scope, stated plainly.** The deployed site describes one collector; the study in this
+document describes six. The site says so in its footer and names the collector, because the
+alternative - a daily page quietly carrying six-collector-looking numbers - would be worse
+than no live site at all (D-063). Incident results are curated rather than streamed and are
+not recomputed daily.
+
+**What the owner has to do once.** Push the repository, enable GitHub Pages with the source
+set to *GitHub Actions*, and run "Daily site" once by hand from the Actions tab so the first
+deployment exists. After that it runs every day after the RPKI job. The site's base path is
+taken from the repository name, so nothing needs editing if the repository is renamed.

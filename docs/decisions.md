@@ -2,6 +2,29 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-19 - Deploying with daily data
+
+### D-063: "Live" means daily, from one collector, and the site says so on every page
+The archives this project reads publish on a daily cadence, so a live site refreshes daily
+rather than in real time. The RPKI side is cheap and was already automated. The BGP side is
+the constraint: the six-collector study is 818 MB and 64 minutes, which is not a daily job for
+a hosted runner. One collector is - rrc06, the smallest, the same one `hijax reproduce` uses -
+so `daily-site.yml` ingests yesterday's RPKI snapshot and rrc06's routing table, validates,
+detects, exports the JSON, commits it and publishes the site to GitHub Pages.
+
+The consequence has to be stated rather than left for a reader to notice: **the deployed
+numbers come from one collector and the write-up's from six, and they are not directly
+comparable.** `summary.json` now records `collectors` and `snapshot_date`, the navbar chip
+names the date, and the footer of every page names the collectors and says the two scopes
+differ. A daily refresh that quietly wore the study's numbers would be the site's worst
+failure, and it is the one this decision is built to prevent.
+
+The job runs after the daily RPKI workflow completes, never alongside it, so the two cannot
+race to commit `web/public/data`. Everything under `data/` lives only for the run; only the
+small JSON the site reads is committed, inside the plan's 5 MB budget. The incident results
+are curated rather than streamed and are not recomputed daily, so the committed
+`incidents.json` is kept as it is.
+
 ## 2026-09-19 - Cleaning up after Phase 7
 
 ### D-059: The whole export describes one date, decided once

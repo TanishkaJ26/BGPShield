@@ -33,6 +33,7 @@ from hijax.analysis.longitudinal import build_series
 from hijax.analysis.regional import compare_regions, largest_transit
 from hijax.config import Config
 from hijax.tables import (
+    collectors_stored,
     latest_snapshot,
     nearest_snapshot_on_or_before,
     previous_month,
@@ -327,6 +328,15 @@ def export_incidents(cfg: Config, destination: Path) -> Path:
 def export_summary(cfg: Config, destination: Path, *, sources: dict[str, Path]) -> Path:
     """The headline numbers, each beside the caveat it must not be quoted without."""
     headline: dict[str, Any] = {"generated_from": sorted(p.name for p in sources.values())}
+
+    day = export_date(cfg)
+    if day is not None:
+        headline["snapshot_date"] = str(day)
+        aspa_day = aspa_snapshot_for(cfg, day)
+        headline["aspa_snapshot_date"] = str(aspa_day) if aspa_day else None
+        # Which vantage points fed this export. The write-up uses six; a daily refresh on a
+        # hosted runner can afford one, and the two must never be mistaken for each other.
+        headline["collectors"] = collectors_stored(table_root(cfg, "routes"), day)
 
     regional = sources.get("regional")
     if regional is not None and regional.exists():

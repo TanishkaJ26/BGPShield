@@ -6,6 +6,16 @@
   "path_coverage.json",
   "regional.json"
  ],
+ "snapshot_date": "2026-09-01",
+ "aspa_snapshot_date": "2026-09-01",
+ "collectors": [
+  "route-views.sg",
+  "route-views.sydney",
+  "route-views2",
+  "rrc00",
+  "rrc06",
+  "rrc23"
+ ],
  "adoption": {
   "global": {
    "routed_networks": 86658,

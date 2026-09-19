@@ -1,4 +1,6 @@
-import { NetworksPayload } from '../../lib/data';
+import Kinetic from '../../components/Kinetic';
+import Reveal from '../../components/Reveal';
+import { NetworksPayload, thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
 import NetworkSearch from './search';
 
@@ -10,45 +12,56 @@ export default async function Networks() {
 
   if (!payload) {
     return (
-      <p className="missing">
-        No network table has been exported yet. Run <code>hijax export</code> after validating a
-        date.
-      </p>
+      <section className="band" style={{ paddingTop: 160 }}>
+        <div className="shell">
+          <p className="missing">
+            No network table has been exported yet. Run <code>hijax export</code> after
+            validating a date.
+          </p>
+        </div>
+      </section>
     );
   }
 
+  const publishers = payload.rows.filter((row) => row.publishes_aspa).length;
+
   return (
     <>
-      <h2>Networks</h2>
-      <p>
-        Each network&rsquo;s origin-validation results and whether it publishes an ASPA record,
-        for {payload.snapshot_date}. Search by AS number, country or registry.
-      </p>
+      <section className="hero" style={{ minHeight: '70svh' }}>
+        <div className="shell">
+          <p className="eyebrow">Per-network results · {payload.snapshot_date}</p>
+          <Kinetic as="h1" className="display" text="Look up any network." accent="any" startDelay={120} />
+          <div className="hero-foot">
+            <p className="lede" style={{ margin: 0 }}>
+              Origin-validation results and ASPA status for {thousands(payload.rows.length)}{' '}
+              networks, {thousands(publishers)} of which publish a record. Search by AS number,
+              country or registry.
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <div className="caution">
-        <strong>This is not the whole routing table.</strong>
-        {payload.selection} A network that is absent here is not necessarily absent from the
-        internet.
-      </div>
-
-      <NetworkSearch
-        initialRows={payload.rows.slice(0, PRERENDERED)}
-        total={payload.rows.length}
-      />
-
-      <div className="caution">
-        <strong>Reading these columns</strong>
-        <ul>
-          {payload.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-          <li>
-            <strong>Invalid</strong> does not mean an attack. Phase 4 found that roughly one in
-            five Invalid routes is better explained by an incomplete published record than by
-            anything wrong with the routing.
-          </li>
-        </ul>
-      </div>
+      <section className="band" style={{ paddingTop: 0 }}>
+        <div className="shell">
+          <Reveal>
+            <NetworkSearch initialRows={payload.rows.slice(0, PRERENDERED)} total={payload.rows.length} />
+          </Reveal>
+          <div className="note">
+            <strong>This is not the whole routing table.</strong>
+            {payload.selection} A network absent here is not necessarily absent from the internet.
+            <ul>
+              {payload.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+              <li>
+                <strong>Invalid</strong> does not mean an attack. Roughly one in five Invalid routes
+                is better explained by an incomplete published record than by anything wrong with
+                the routing.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

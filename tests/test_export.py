@@ -203,3 +203,13 @@ def test_an_aspa_snapshot_after_the_routing_date_is_not_used(cfg: Config, tmp_pa
 
     with pytest.raises(FileNotFoundError):
         export_regional(cfg, tmp_path / "regional.json")
+
+
+def test_the_summary_names_its_collectors_and_date(cfg: Config, tmp_path: Path) -> None:
+    """A site refreshed daily from one collector must say so; the write-up uses six, and a
+    reader must be able to tell which they are looking at."""
+    _seed(cfg)
+    build_all(cfg, destination=tmp_path / "out")
+    summary = json.loads((tmp_path / "out" / "summary.json").read_text(encoding="utf-8"))
+    assert summary["snapshot_date"] == "2026-09-01"
+    assert summary["collectors"] == ["rrc06"]

@@ -58,6 +58,19 @@ plus roughly 66 MB of downloads on a fresh clone, against a thirty-minute budget
 
 Add `--skip-pipeline` to check what is already stored without re-running anything.
 
+## Deploying it with daily data
+
+`.github/workflows/daily-site.yml` refreshes the numbers every day and publishes the site to
+GitHub Pages. To turn it on, once:
+
+1. Push the repository.
+2. In the repository settings, enable **Pages** with the source set to **GitHub Actions**.
+3. From the **Actions** tab, run **Daily site** by hand so the first deployment exists.
+
+It then runs daily after the RPKI job. Each run ingests one collector (rrc06, ~43 MB), so
+**the live site describes one collector while the write-up describes six** - every page says
+so in its footer.
+
 ## The dashboard
 
 ```bash
