@@ -2,13 +2,51 @@
 
 Newest first. Each entry: what was decided, why, and what it affects.
 
+## 2026-09-19 - Launch hardening
+
+### D-066: The project is "BGPShield", the same as the GitHub repository
+The repository on GitHub is `TanishkaJ26/BGPShield` while the project, package and CLI were
+still `hijax`, so the site's base path, the README's commands and the name a reader saw on
+GitHub disagreed with each other. The owner chose to make them all the same. The package is
+`src/bgpshield/`, the console command is `bgpshield`, the config environment variable is
+`BGPSHIELD_CONFIG`, the User-Agent is `bgpshield/<version>`, and the site, plan and docs
+follow. D-008 and D-011 keep their original wording as the record of the earlier rename;
+`docs/data-sources.md` still records the User-Agents the Phase 0 downloads were actually
+made with, for the same reason as before. The local folder is still `Desktop\Hijax`; a
+folder name is not part of the project and renaming it would only invalidate the virtual
+environment.
+
+### D-064: The CLI finds its config; the working directory is not part of the interface
+`bgpshield` assumed it was started from the repository root: `config/default.yaml` was a relative
+path, and so was every `paths.*` entry inside it, so a command run from anywhere else failed
+with a bare `FileNotFoundError` or, worse, wrote `data/` somewhere new. For a tool that a
+scheduled job, a reproduction by a stranger and the owner's own shell all invoke, that is a
+launch blocker. The config is now found in three places in order - `$BGPSHIELD_CONFIG`, then
+`config/default.yaml` in the working directory or any directory above it, then the checkout
+the package was imported from - and relative paths are resolved against the directory that
+holds `config/`, which `Config.root` records. `--config` still overrides everything.
+
+Two smaller things went with it. The version is read from the installed package metadata,
+so `pyproject.toml` is the only place it is written and the User-Agent carries it (the
+config file says `bgpshield/{version}`). And the console script is `bgpshield.cli:run`, which turns
+a missing config or a refused download into one line and a non-zero exit; a traceback is
+kept for anything unexpected, because that is a bug and should look like one.
+
+### D-065: The site is checked the way it is deployed
+`next lint` no longer exists in Next 16 and nothing in CI touched the site at all, so a type
+error or a broken base path would only have shown up on Pages. CI now type-checks, lints
+(ESLint with the Next rule set) and builds the site with the same base path the deploy uses.
+The wordmark link was found this way: it pointed at `/`, which on a project site served
+under `/<repository name>` is the wrong address. Workflow inputs now reach the shell through
+the environment and are validated, rather than being interpolated into commands.
+
 ## 2026-09-19 - Deploying with daily data
 
 ### D-063: "Live" means daily, from one collector, and the site says so on every page
 The archives this project reads publish on a daily cadence, so a live site refreshes daily
 rather than in real time. The RPKI side is cheap and was already automated. The BGP side is
 the constraint: the six-collector study is 818 MB and 64 minutes, which is not a daily job for
-a hosted runner. One collector is - rrc06, the smallest, the same one `hijax reproduce` uses -
+a hosted runner. One collector is - rrc06, the smallest, the same one `bgpshield reproduce` uses -
 so `daily-site.yml` ingests yesterday's RPKI snapshot and rrc06's routing table, validates,
 detects, exports the JSON, commits it and publishes the site to GitHub Pages.
 
@@ -54,12 +92,12 @@ fetch fails the page says it is searching only the rows already shown, rather th
 filtered hundred as though it were the whole answer.
 
 ### D-061: The table-reading helpers live in one module
-`hijax.tables` now holds the snapshot-date parsing, partition reading and previous-month
+`bgpshield.tables` now holds the snapshot-date parsing, partition reading and previous-month
 arithmetic that Phases 6 and 7 had written four times over, in the report builder, the
 exporter, the longitudinal analysis and the reproduction script. They had already begun to
 drift: one listed dates with `datetime.strptime` and another with `date.fromisoformat`, and
 only some of them tolerated a partition directory containing no table. This is the same
-consolidation `hijax.topology` got in Phase 4, for the same reason - four copies of a date
+consolidation `bgpshield.topology` got in Phase 4, for the same reason - four copies of a date
 parser is four chances for one of them to disagree about what "the latest snapshot" means.
 
 ### D-062: The reproduction checks the drop rates and the dump size too
@@ -147,7 +185,7 @@ A 42.9 MB dump cannot be fetched in 21 seconds on a link measured at 237 KB/s, a
 table is about 1.36 million prefixes, not 146 thousand. Both signals were there to be read;
 neither was checked.
 
-Ingestion now fetches each dump through `hijax.net.download` - which compares what arrived
+Ingestion now fetches each dump through `bgpshield.net.download` - which compares what arrived
 against `Content-Length`, retries a short read and raises rather than returning a truncated
 file - and parses the verified local copy. The earlier atomic-rename fix was necessary but
 addressed a different failure: it stopped a half-*written* Parquet file being mistaken for a
@@ -185,7 +223,7 @@ The incident check should be re-run on the fixed path before those numbers are r
 
 ### D-051: The seven-day acceptance bar is checked, not remembered
 Plan Section 11 Phase 1 accepts only once the daily job "has run 7 days in a row". That is a
-property of the published series, so `hijax adoption` and the workflow both compute it from
+property of the published series, so `bgpshield adoption` and the workflow both compute it from
 `web/public/data/aspa_adoption.json` and print it. Weekly backfill snapshots sit seven days
 apart and correctly score a streak of one, which is the case the unit tests pin down: against
 the real published file, 154 snapshots give a streak of 1.
@@ -253,7 +291,7 @@ Measuring properly also showed the concern was smaller than assumed: a route-vie
 well under the threshold. The guard stays because the estimate should not be the thing standing
 between the project and the rule.
 
-### D-049: `hijax report` draws only what the stored data supports
+### D-049: `bgpshield report` draws only what the stored data supports
 A figure whose inputs are missing is named and skipped, and the command reports how many were
 skipped. The alternative, drawing a plausible-looking chart from whatever partial data is to
 hand, is the failure mode most likely to put a wrong number in the paper.
@@ -307,7 +345,7 @@ denominator means using more collectors, which is Phase 6 work.
 
 ### D-031: The relationship protocols live in one module
 ``RelSource`` had been defined twice and ``TopologySource`` once more, in three packages.
-They are now in `hijax/topology.py` and imported from there. Structural typing keeps the
+They are now in `bgpshield/topology.py` and imported from there. Structural typing keeps the
 validators, detectors and counterfactual from importing the ingestion package just to say
 what shape of object they need.
 
@@ -480,7 +518,7 @@ Phase 2 builds the full `as_meta` and may join against this.
 ### D-014: The daily job merges into the published aggregate
 `data/` is never committed (rule 5), so a GitHub Actions run holds only the single snapshot
 it just fetched. If the export simply overwrote `web/public/data/aspa_adoption.json`, every
-run would replace the whole time series with one point. `hijax adoption --export` therefore
+run would replace the whole time series with one point. `bgpshield adoption --export` therefore
 merges: rows are keyed by snapshot date, so a re-run corrects a day instead of duplicating
 it. Tested in `tests/test_adoption.py`.
 
@@ -518,6 +556,8 @@ Each commit still has to pass ruff, ruff format, mypy and pytest first.
 
 
 ### D-011: Everything is named `hijax`
+*(Renamed again to `bgpshield` on 2026-09-19, D-066; the text below is the record as written.)*
+
 The owner chose the name, which also answers open question 3 in `implementation.md` Section 19.
 The Python package moved from `src/aspawatch/` to `src/hijax/`, the console command is now `hijax`,
 and the project name, description and User-Agent follow. The plan document was retitled and its
@@ -553,7 +593,7 @@ source-only package. Fixing `pytricia` #48 is a genuine candidate for the open-s
 in plan Section 18, since the fix is small: use `Py_ssize_t` instead of `ssize_t`.
 
 ### D-009: Repository made public; Phase 0 acceptance met
-The owner made `TanishkaJ26/Hijax` public on 2026-09-18 (verified through the GitHub API:
+The owner made `TanishkaJ26/BGPShield` public on 2026-09-18 (verified through the GitHub API:
 `"private": false`). This removes the mismatch with the plan, which assumes a public repo for the
 free GitHub Actions cron (Section 6) and for GitHub Pages hosting (Section 7, Phase 7). Both are
 now available on the free plan.
@@ -579,7 +619,7 @@ decision. **Superseded the same day by D-011 below: everything is now named `hij
 
 ### D-001 (resolved): git identity confirmed
 The owner confirmed on 2026-09-18 that `Tanishka Jangir <tanishkajangir26@gmail.com>` and the
-remote `https://github.com/TanishkaJ26/Hijax.git` are theirs, and asked that only their GitHub
+remote `https://github.com/TanishkaJ26/BGPShield.git` are theirs, and asked that only their GitHub
 account be used here. Git Credential Manager (system `gitconfig`) supplies the GitHub credential;
 no `GITHUB_TOKEN`/`GH_TOKEN` is set in the environment and the `gh` CLI is not installed, so pushes
 authenticate as the owner. The Claude session account (a different address) is never used for git.

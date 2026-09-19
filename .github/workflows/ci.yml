@@ -5,9 +5,18 @@ on:
     branches: ["main", "phase-*"]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  python:
+    name: Python (lint, format, types, tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -20,6 +29,38 @@ jobs:
       - name: Format check
         run: uv run ruff format --check .
       - name: Type check
-        run: uv run mypy
+        run: uv run mypy src
       - name: Tests
         run: uv run pytest
+      # The CLI has to work from any directory, not only the repo root (D-064).
+      - name: CLI from outside the checkout
+        run: |
+          cd /tmp
+          uv run --project "$GITHUB_WORKSPACE" bgpshield version
+          uv run --project "$GITHUB_WORKSPACE" bgpshield --help > /dev/null
+
+  web:
+    name: Web (types, lint, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install (locked)
+        run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      # Built the way Pages builds it, so a base-path regression fails here and not live.
+      - name: Build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run build

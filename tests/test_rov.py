@@ -13,7 +13,7 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from hijax.validate.rov import RovReason, RovState, VrpIndex
+from bgpshield.validate.rov import RovReason, RovState, VrpIndex
 
 HOLDER = 64496
 OTHER = 64497
@@ -129,7 +129,7 @@ def test_default_route_covers_everything() -> None:
 
 
 def test_build_from_the_stored_table() -> None:
-    """The index must load straight from the vrps table that hijax ingest-rpki writes."""
+    """The index must load straight from the vrps table that bgpshield ingest-rpki writes."""
     frame = pl.DataFrame(
         {
             "prefix": ["203.0.113.0/24", "2001:db8::/32"],

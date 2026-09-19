@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 import requests
 
-from hijax import net
+from bgpshield import net
 
 
 class FakeResponse:
@@ -134,3 +134,39 @@ def test_gives_up_loudly_rather_than_returning_bad_data(tmp_path: Path) -> None:
     with pytest.raises(net.DownloadError, match="giving up"):
         net.download(session, "https://example.invalid/f", tmp_path / "f", attempts=4, pause=0)  # type: ignore[arg-type]
     assert not (tmp_path / "f").exists()
+
+
+def test_rate_limiting_waits_as_long_as_the_server_asks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 429 with Retry-After is the archive asking for patience, and it gets it."""
+    slept: list[float] = []
+    monkeypatch.setattr(net.time, "sleep", lambda seconds: slept.append(seconds))
+    limited = FakeResponse(status=429)
+    limited.headers["Retry-After"] = "3"
+    session = FakeSession(limited, FakeResponse(body=b"ok"))
+    dest = tmp_path / "file.bin"
+    assert net.download(session, "https://example.invalid/f", dest, pause=0) == dest  # type: ignore[arg-type]
+    assert slept[0] == 3.0
+    assert dest.read_bytes() == b"ok"
+
+
+def test_retry_after_is_capped_so_a_bad_header_cannot_park_a_job() -> None:
+    assert net._retry_delay("99999", 1, 0.5) == net.MAX_RETRY_AFTER_SECONDS
+
+
+def test_backoff_doubles_between_attempts() -> None:
+    assert [net._retry_delay(None, attempt, 0.5) for attempt in (1, 2, 3)] == [0.5, 1.0, 2.0]
+
+
+def test_an_unparseable_retry_after_falls_back_to_backoff() -> None:
+    assert net._retry_delay("soon", 2, 0.5) == 1.0
+
+
+def test_a_garbage_content_length_does_not_reject_a_good_body(tmp_path: Path) -> None:
+    response = FakeResponse(body=b"payload")
+    response.headers["Content-Length"] = "banana"
+    session = FakeSession(response)
+    dest = tmp_path / "file.bin"
+    assert net.download(session, "https://example.invalid/f", dest, pause=0) == dest  # type: ignore[arg-type]
+    assert dest.read_bytes() == b"payload"

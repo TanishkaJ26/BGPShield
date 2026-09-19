@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * A number that scrambles through digits and settles on its value when scrolled into view.
@@ -22,8 +22,11 @@ export default function Counter({
   const ref = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState<string | null>(null);
 
-  const format = (n: number) =>
-    n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const format = useCallback(
+    (n: number) =>
+      n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+    [decimals]
+  );
 
   useEffect(() => {
     const el = ref.current;
@@ -57,7 +60,7 @@ export default function Counter({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [value, duration, decimals]);
+  }, [value, duration, format]);
 
   return (
     <span ref={ref} className="mono-num">

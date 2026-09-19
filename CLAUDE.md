@@ -1,6 +1,6 @@
 # CLAUDE.md — rules for working on this repo
 
-Project: **Hijax** (formerly "Disha", and before that titled "ASPA Watch"), a BGP route-security measurement project. The Python package and CLI are both `hijax`.
+Project: **BGPShield** (formerly "Hijax", before that "Disha", and originally titled "ASPA Watch"), a BGP route-security measurement project, named after its GitHub repository. The Python package and CLI are both `bgpshield`.
 The full plan is in `implementation.md`; it is the source of truth. Section numbers below refer to it.
 
 This is a **research measurement project**, not a product. Correctness and reproducibility matter more than features.

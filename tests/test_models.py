@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from hijax.models import (
+from bgpshield.models import (
     RecordFormatError,
     afi_of_prefix,
     epoch_to_utc,
@@ -93,7 +93,7 @@ def test_as0_survives_when_it_is_the_whole_list() -> None:
 
 
 def test_apply_as0_rule_directly() -> None:
-    from hijax.models import apply_as0_rule
+    from bgpshield.models import apply_as0_rule
 
     assert apply_as0_rule({0}) == (0,)
     assert apply_as0_rule({0, 1}) == (1,)

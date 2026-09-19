@@ -17,7 +17,7 @@ from pathlib import Path
 import bgpkit
 import requests
 
-UA = "hijax-phase0/0.1 (research; tanishkajangir26@gmail.com)"
+UA = "bgpshield-phase0/0.1 (research; tanishkajangir26@gmail.com)"
 SAMPLES = Path("data/raw/samples/mrt")
 
 print("bgpkit module:", bgpkit.__file__)

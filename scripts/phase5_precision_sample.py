@@ -22,9 +22,9 @@ from pathlib import Path
 
 import polars as pl
 
-from hijax.config import load_config
-from hijax.detect.leaks import Direction, find_leakers, path_directions
-from hijax.ingest.meta import RelationshipLookup
+from bgpshield.config import load_config
+from bgpshield.detect.leaks import Direction, find_leakers, path_directions
+from bgpshield.ingest.meta import RelationshipLookup
 
 
 def main() -> None:

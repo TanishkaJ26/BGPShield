@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from hijax.incidents import (
+from bgpshield.incidents import (
     IncidentKind,
     IncidentResult,
     Outcome,

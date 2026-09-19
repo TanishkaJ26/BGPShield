@@ -11,7 +11,7 @@ from pathlib import Path
 
 import polars as pl
 
-from hijax.tables import (
+from bgpshield.tables import (
     collectors_stored,
     latest_snapshot,
     nearest_snapshot_on_or_before,

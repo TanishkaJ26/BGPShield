@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from hijax.detect.leaks import (
+from bgpshield.detect.leaks import (
     Direction,
     LeakObservation,
     LeakType,
@@ -27,7 +27,12 @@ from hijax.detect.leaks import (
     leak_type,
     path_directions,
 )
-from hijax.ingest.meta import RelationshipLookup, SiblingLookup, parse_as2org_jsonl, parse_as_rel
+from bgpshield.ingest.meta import (
+    RelationshipLookup,
+    SiblingLookup,
+    parse_as2org_jsonl,
+    parse_as_rel,
+)
 
 AS1, AS2, AS3, AS4, AS5, AS6, AS7 = 1, 2, 3, 4, 5, 6, 7
 

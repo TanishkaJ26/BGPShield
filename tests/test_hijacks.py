@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import json
 
-from hijax.detect.hijacks import CandidateType, find_candidates
-from hijax.ingest.meta import SiblingLookup, parse_as2org_jsonl
+from bgpshield.detect.hijacks import CandidateType, find_candidates
+from bgpshield.ingest.meta import SiblingLookup, parse_as2org_jsonl
 
 HOLDER = 64496
 SIBLING = 64497

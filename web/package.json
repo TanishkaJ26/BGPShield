@@ -1,13 +1,15 @@
 {
-  "name": "hijax-dashboard",
+  "name": "bgpshield-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "Static dashboard for the Hijax BGP route-security measurements (plan Section 11, Phase 7).",
+  "description": "Static dashboard for the BGPShield BGP route-security measurements (plan Section 11, Phase 7).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "serve": "python ../scripts/serve_site.py",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check": "npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
     "next": "^16.3.5",
@@ -17,6 +19,8 @@
   "devDependencies": {
     "@types/node": "22.10.7",
     "@types/react": "19.0.7",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.5",
     "typescript": "5.7.3"
   }
 }

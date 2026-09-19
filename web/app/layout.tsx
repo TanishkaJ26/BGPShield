@@ -1,9 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, IBM_Plex_Mono, Instrument_Sans } from 'next/font/google';
 import Cursor from '../components/Cursor';
 import Nav from '../components/Nav';
 import { SummaryPayload } from '../lib/data';
 import { readExport } from '../lib/load';
+import { siteUrl } from '../lib/site';
 import './globals.css';
 
 /**
@@ -28,10 +29,28 @@ const mono = IBM_Plex_Mono({
   display: 'swap',
 });
 
+const TITLE = 'BGPShield — nobody vouched for this route';
+const DESCRIPTION =
+  'Follow one BGP route hop by hop and see how much of the internet has actually been vouched for. Measurements of RPKI and ASPA adoption, correctness and effect.';
+
 export const metadata: Metadata = {
-  title: 'Hijax — nobody vouched for this route',
-  description:
-    'Follow one BGP route hop by hop and see how much of the internet has actually been vouched for. Measurements of RPKI and ASPA adoption, correctness and effect.',
+  // Absolute URLs (Open Graph, the sitemap) need the published address, which only the
+  // deploy knows. Locally it is unset and Next falls back to relative links.
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
+  title: { default: TITLE, template: '%s · BGPShield' },
+  description: DESCRIPTION,
+  applicationName: 'BGPShield',
+  keywords: ['BGP', 'RPKI', 'ASPA', 'route origin validation', 'route leak', 'internet measurement'],
+  openGraph: { type: 'website', siteName: 'BGPShield', title: TITLE, description: DESCRIPTION, locale: 'en_US' },
+  twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
+  robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#06070b',
+  colorScheme: 'dark',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -67,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             ) : null}
             <p className="meta">
               Passive measurement only — this project never sends traffic to any network. Every
-              figure is reproducible from the repository with <code>hijax reproduce</code>, which
+              figure is reproducible from the repository with <code>bgpshield reproduce</code>, which
               re-derives one date and checks seventeen values against committed fixtures.
             </p>
           </div>

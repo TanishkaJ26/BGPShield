@@ -81,10 +81,10 @@ export default function Nav({ snapshot }: { snapshot?: string | null }) {
   return (
     <>
       <div className={`pill-nav ${scrolled ? 'scrolled' : ''}`}>
-        <a href="/" className="wordmark" data-cursor="link">
+        <Link href="/" className="wordmark" data-cursor="link">
           <span className="dot" aria-hidden="true" />
-          Hijax
-        </a>
+          BGPShield
+        </Link>
         <nav aria-label="Sections" onMouseLeave={settle}>
           <ul ref={list}>
             <li

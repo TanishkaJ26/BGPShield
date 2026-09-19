@@ -9,14 +9,14 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from hijax.analysis.correctness import (
+from bgpshield.analysis.correctness import (
     blame_by_as,
     compare_providers,
     completeness_summary,
     estimate_false_positives,
 )
-from hijax.ingest.meta import RelationshipLookup, parse_as_rel
-from hijax.ingest.rpki import ASPAS_SCHEMA
+from bgpshield.ingest.meta import RelationshipLookup, parse_as_rel
+from bgpshield.ingest.rpki import ASPAS_SCHEMA
 
 AS1, AS2, AS3, AS4, AS5, AS6, AS7 = 1, 2, 3, 4, 5, 6, 7
 

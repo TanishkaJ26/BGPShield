@@ -12,7 +12,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from hijax.paths import (
+from bgpshield.paths import (
     AS_TRANS,
     NormalizedPath,
     PathFlag,

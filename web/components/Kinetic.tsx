@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 
 /**
  * Splits a headline into words and lets each one rise into place, staggered.
  *
  * The words are real text in the HTML from the start — this only wraps them so the CSS can
  * move them. Under reduced motion the CSS leaves them where they are.
+ *
+ * The space between two words is a sibling of the word spans, never a child of one. Each
+ * word sits in an `inline-block` with `overflow: hidden` so it can be clipped as it rises,
+ * and a browser collapses whitespace at the end of such a box — which rendered every
+ * headline on the site as "Nobodyvouchedforthisroute."
  */
 export default function Kinetic({
   text,
@@ -38,12 +43,14 @@ export default function Kinetic({
   return (
     <Element ref={ref} className={`kinetic ${className}`.trim()}>
       {words.map((word, index) => (
-        <span className="w" key={`${word}-${index}`}>
-          <span style={{ '--i': index } as React.CSSProperties}>
-            {accentWords.has(word.replace(/[.,]/g, '')) ? <em>{word}</em> : word}
+        <Fragment key={`${word}-${index}`}>
+          <span className="w">
+            <span style={{ '--i': index } as React.CSSProperties}>
+              {accentWords.has(word.replace(/[.,]/g, '')) ? <em>{word}</em> : word}
+            </span>
           </span>
           {index < words.length - 1 ? ' ' : ''}
-        </span>
+        </Fragment>
       ))}
     </Element>
   );

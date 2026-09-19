@@ -1,5 +1,5 @@
 {
- "generated_from": "hijax ingest-rpki (RIPE NCC RPKI archive, Routinator JSON)",
+ "generated_from": "bgpshield ingest-rpki (RIPE NCC RPKI archive, Routinator JSON)",
  "caveat_country": "Country is where the AS number is registered, not where the network operates.",
  "snapshots": 154,
  "latest_snapshot": "2026-09-16",

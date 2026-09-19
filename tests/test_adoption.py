@@ -13,7 +13,7 @@ from datetime import date
 import polars as pl
 import pytest
 
-from hijax.analysis.adoption import (
+from bgpshield.analysis.adoption import (
     AdoptionTables,
     counts_by_country,
     counts_by_day,
@@ -23,7 +23,7 @@ from hijax.analysis.adoption import (
     to_json,
     write_json,
 )
-from hijax.ingest.rpki import ASPAS_SCHEMA
+from bgpshield.ingest.rpki import ASPAS_SCHEMA
 
 DAY1 = date(2026, 9, 1)
 DAY2 = date(2026, 9, 8)
@@ -120,7 +120,7 @@ def test_write_json_round_trips(tmp_path: object) -> None:
 def test_merge_payload_builds_a_series_from_single_day_runs() -> None:
     """The daily CI job ingests one snapshot at a time, so each run must extend the
     published series rather than replace it."""
-    from hijax.analysis.adoption import merge_payload
+    from bgpshield.analysis.adoption import merge_payload
 
     old = {
         "by_day": [{"snapshot_date": "2026-09-01", "aspas": 2, "customer_asns": 2}],
@@ -142,7 +142,7 @@ def test_merge_payload_builds_a_series_from_single_day_runs() -> None:
 
 
 def test_merge_payload_corrects_a_rerun_day_instead_of_duplicating_it() -> None:
-    from hijax.analysis.adoption import merge_payload
+    from bgpshield.analysis.adoption import merge_payload
 
     old = {"by_day": [{"snapshot_date": "2026-09-01", "aspas": 2, "customer_asns": 2}]}
     new = {"by_day": [{"snapshot_date": "2026-09-01", "aspas": 3, "customer_asns": 3}]}
@@ -153,7 +153,7 @@ def test_merge_payload_corrects_a_rerun_day_instead_of_duplicating_it() -> None:
 def test_update_json_appends_across_runs(tmp_path: object) -> None:
     from pathlib import Path
 
-    from hijax.analysis.adoption import update_json
+    from bgpshield.analysis.adoption import update_json
 
     assert isinstance(tmp_path, Path)
     out = tmp_path / "aspa_adoption.json"
@@ -176,7 +176,7 @@ def test_update_json_appends_across_runs(tmp_path: object) -> None:
 def test_aspa_coverage_by_position() -> None:
     """Where a publisher sits on the path decides what it can do, so the shares are split
     by position rather than reported as one number."""
-    from hijax.analysis.adoption import aspa_coverage_by_position
+    from bgpshield.analysis.adoption import aspa_coverage_by_position
 
     routes = pl.DataFrame(
         {
@@ -205,7 +205,7 @@ def test_aspa_coverage_by_position() -> None:
 
 
 def test_aspa_coverage_with_no_publishers() -> None:
-    from hijax.analysis.adoption import aspa_coverage_by_position
+    from bgpshield.analysis.adoption import aspa_coverage_by_position
 
     routes = pl.DataFrame({"as_path": [[1, 2, 3]]})
     result = aspa_coverage_by_position(routes, set())

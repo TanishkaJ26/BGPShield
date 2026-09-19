@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from hijax.ingest.meta import (
+from bgpshield.ingest.meta import (
     AsnBlock,
     DelegatedFormatError,
     expand,

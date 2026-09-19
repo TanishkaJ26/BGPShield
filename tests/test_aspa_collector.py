@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import pytest
 
-from hijax.ingest.meta import RelationshipLookup, parse_as_rel
-from hijax.validate.aspa import (
+from bgpshield.ingest.meta import RelationshipLookup, parse_as_rel
+from bgpshield.validate.aspa import (
     AspaRegistry,
     AspaState,
     Procedure,

@@ -5,7 +5,7 @@ name: Daily RPKI snapshot
 # this small job runs on GitHub Actions (plan Section 6).
 #
 # The Parquet tables live under data/ and are never committed, so a run only ever holds
-# the day it just ingested. `hijax adoption --export` therefore merges that day into the
+# the day it just ingested. `bgpshield adoption --export` therefore merges that day into the
 # published series rather than overwriting it.
 
 on:
@@ -30,6 +30,7 @@ concurrency:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -40,14 +41,23 @@ jobs:
       - name: Install (locked)
         run: uv sync --locked
 
+      # Inputs reach the shell through the environment, never by interpolation, so a
+      # crafted value cannot become a command. The date is checked before anything uses it.
       - name: Choose the snapshot date
         id: day
+        env:
+          REQUESTED: ${{ inputs.date }}
         run: |
-          if [ -n "${{ inputs.date }}" ]; then
-            echo "date=${{ inputs.date }}" >> "$GITHUB_OUTPUT"
+          if [ -n "$REQUESTED" ]; then
+            day="$REQUESTED"
           else
-            echo "date=$(date -u -d yesterday +%F)" >> "$GITHUB_OUTPUT"
+            day="$(date -u -d yesterday +%F)"
           fi
+          if ! date -u -d "$day" +%F >/dev/null 2>&1 || [ "$(date -u -d "$day" +%F)" != "$day" ]; then
+            echo "date must be YYYY-MM-DD, got '$day'" >&2
+            exit 1
+          fi
+          echo "date=$day" >> "$GITHUB_OUTPUT"
 
       # The five RIR delegated-stats files are ~44 MB and change slowly, so fetch them
       # once a week rather than on every run. Being a polite archive user is a project
@@ -65,10 +75,10 @@ jobs:
             delegated-${{ runner.os }}-
 
       - name: Ingest the snapshot
-        run: uv run hijax ingest-rpki --date "${{ steps.day.outputs.date }}"
+        run: uv run bgpshield ingest-rpki --date "${{ steps.day.outputs.date }}"
 
       - name: Update the adoption aggregate
-        run: uv run hijax adoption --export web/public/data/aspa_adoption.json
+        run: uv run bgpshield adoption --export web/public/data/aspa_adoption.json
 
       # Plan Section 11 Phase 1 accepts only once this job has run seven days in a row.
       # Printing the streak each run turns that from something to remember into something
@@ -79,7 +89,7 @@ jobs:
           uv run python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
           from pathlib import Path
-          from hijax.analysis.adoption import longest_daily_streak
+          from bgpshield.analysis.adoption import longest_daily_streak
 
           payload = json.loads(Path("web/public/data/aspa_adoption.json").read_text())
           days = [row["snapshot_date"] for row in payload.get("by_day", [])]

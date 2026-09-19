@@ -32,7 +32,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-HIJAX = REPO / ".venv" / "Scripts" / "hijax.exe"
+BGPSHIELD = REPO / ".venv" / "Scripts" / "bgpshield.exe"
 SCRATCH = REPO / "data" / "interim" / "phase1_replay"
 CONFIG = SCRATCH / "replay.yaml"
 SERIES = SCRATCH / "aspa_adoption.json"
@@ -60,7 +60,7 @@ def write_config() -> None:
 def run(args: list[str], label: str) -> tuple[bool, str]:
     started = time.time()
     proc = subprocess.run(
-        [str(HIJAX), *args, "--config", str(CONFIG)],
+        [str(BGPSHIELD), *args, "--config", str(CONFIG)],
         cwd=REPO,
         capture_output=True,
         text=True,

@@ -17,20 +17,20 @@ Set-Location $repo
 $sampleFile = Join-Path $repo "data\processed\phase2_mem_samples.txt"
 if (Test-Path $sampleFile) { Remove-Item $sampleFile }
 
-# Sample the whole python/hijax process tree every two seconds.
+# Sample the whole python/bgpshield process tree every two seconds.
 $sampler = Start-Job -ScriptBlock {
     param($out)
     while ($true) {
-        $bytes = (Get-Process -Name python, hijax -ErrorAction SilentlyContinue |
+        $bytes = (Get-Process -Name python, bgpshield -ErrorAction SilentlyContinue |
                   Measure-Object -Property WorkingSet64 -Sum).Sum
         if ($bytes) { Add-Content -Path $out -Value $bytes }
         Start-Sleep -Seconds 2
     }
 } -ArgumentList $sampleFile
 
-Write-Output "timing: hijax ingest-bgp --date $Day --jobs $Jobs --force"
+Write-Output "timing: bgpshield ingest-bgp --date $Day --jobs $Jobs --force"
 $started = Get-Date
-& "$repo\.venv\Scripts\hijax.exe" ingest-bgp --date $Day --jobs $Jobs --force 2>&1 |
+& "$repo\.venv\Scripts\bgpshield.exe" ingest-bgp --date $Day --jobs $Jobs --force 2>&1 |
     ForEach-Object { Write-Output $_ }
 $code = $LASTEXITCODE
 $elapsed = (Get-Date) - $started

@@ -15,7 +15,7 @@ import json
 
 import pytest
 
-from hijax.ingest.meta import (
+from bgpshield.ingest.meta import (
     AsRelation,
     DelegatedFormatError,
     RelationshipLookup,
@@ -137,7 +137,7 @@ def test_siblings_share_an_organisation() -> None:
 
 def test_asrank_frame_from_api_shaped_nodes() -> None:
     """Node shape quoted from a live AS Rank response verified in Phase 2."""
-    from hijax.ingest.meta import asrank_frame
+    from bgpshield.ingest.meta import asrank_frame
 
     nodes = [
         {"asn": "3356", "rank": 1, "cone": {"numberAsns": 54887, "numberPrefixes": 935384}},
@@ -161,7 +161,7 @@ def test_build_as_meta_keeps_as_numbers_known_to_only_one_source() -> None:
     would quietly bias every per-country and per-cone figure, so nulls are kept."""
     import polars as pl
 
-    from hijax.ingest.meta import build_as_meta
+    from bgpshield.ingest.meta import build_as_meta
 
     registry = pl.DataFrame(
         {
@@ -197,7 +197,7 @@ def test_build_as_meta_keeps_as_numbers_known_to_only_one_source() -> None:
 
 
 def test_month_first_day_matches_caida_file_naming() -> None:
-    from hijax.ingest.meta import month_first_day
+    from bgpshield.ingest.meta import month_first_day
 
     assert month_first_day("2026-08") == "20260801"
     assert month_first_day("2023-1") == "20230101"
@@ -218,7 +218,7 @@ ORG-B|20120130|Other Ltd|US|ARIN
 def test_as2org_text_format_is_parsed() -> None:
     """The JSON Lines form only exists for some releases, so older months have to be read
     from the original pipe-delimited text (verified in Phase 0)."""
-    from hijax.ingest.meta import parse_as2org_text
+    from bgpshield.ingest.meta import parse_as2org_text
 
     frame = parse_as2org_text(AS2ORG_TEXT.splitlines())
     assert frame.columns == ["asn", "org_id", "org_name", "org_country"]
@@ -231,7 +231,7 @@ def test_as2org_text_format_is_parsed() -> None:
 
 def test_as2org_text_and_jsonl_agree() -> None:
     """Both forms of the same data must produce the same table."""
-    from hijax.ingest.meta import parse_as2org_jsonl, parse_as2org_text
+    from bgpshield.ingest.meta import parse_as2org_jsonl, parse_as2org_text
 
     from_text = parse_as2org_text(AS2ORG_TEXT.splitlines()).sort("asn")
     from_json = parse_as2org_jsonl(AS2ORG.splitlines()).sort("asn")
@@ -239,6 +239,6 @@ def test_as2org_text_and_jsonl_agree() -> None:
 
 
 def test_months_back_walks_backwards_over_a_year_boundary() -> None:
-    from hijax.ingest.meta import _months_back
+    from bgpshield.ingest.meta import _months_back
 
     assert _months_back("2019-02", 3) == ["2019-02", "2019-01", "2018-12", "2018-11"]

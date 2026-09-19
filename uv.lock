@@ -65,6 +65,61 @@ wheels = [
 ]
 
 [[package]]
+name = "bgpshield"
+version = "1.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "duckdb" },
+    { name = "matplotlib" },
+    { name = "polars" },
+    { name = "py-radix" },
+    { name = "pyarrow" },
+    { name = "pybgpkit" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "typer" },
+    { name = "tzdata" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "hypothesis" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "duckdb", specifier = ">=1.0" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
+    { name = "polars", specifier = ">=1.0" },
+    { name = "py-radix", specifier = ">=1.1.0" },
+    { name = "pyarrow", specifier = ">=16" },
+    { name = "pybgpkit", specifier = ">=0.8" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", specifier = ">=2.32" },
+    { name = "typer", specifier = ">=0.12" },
+    { name = "tzdata", specifier = ">=2026.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "hypothesis", specifier = ">=6.100" },
+    { name = "mypy", specifier = ">=1.11" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-cov", specifier = ">=5" },
+    { name = "ruff", specifier = ">=0.6" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -208,61 +263,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e2/5e/f9600553b9f645e3068553831685ff1dab6259536a23b38d2e048de38f17/fonttools-4.65.0-cp312-cp312-win32.whl", hash = "sha256:04f73dd01005752a6e75cf4a8dc6b70dc724d1d4bc34cc89522153f4a2f07680", size = 2432089, upload-time = "2026-09-10T15:34:02.803Z" },
     { url = "https://files.pythonhosted.org/packages/3a/02/e436a6a1863b9862bab9f82d6da33055dd7aa3738017edd902a163525dc2/fonttools-4.65.0-cp312-cp312-win_amd64.whl", hash = "sha256:3b5d9ba89edf778b376e669b879ae33a198bf45cf5a23c3f6514f935cf9d0d9d", size = 2483475, upload-time = "2026-09-10T15:34:05.09Z" },
     { url = "https://files.pythonhosted.org/packages/e6/35/f894ceb867118c0261d0f69a9bd516b045a3754238f76c88a49513ac7a83/fonttools-4.65.0-py3-none-any.whl", hash = "sha256:3060b8c1fc2329fa20265b7c138614143ea7c1624e26c5c180c76aeb74deae6f", size = 1196441, upload-time = "2026-09-10T15:35:52.347Z" },
-]
-
-[[package]]
-name = "hijax"
-version = "0.0.1"
-source = { editable = "." }
-dependencies = [
-    { name = "duckdb" },
-    { name = "matplotlib" },
-    { name = "polars" },
-    { name = "py-radix" },
-    { name = "pyarrow" },
-    { name = "pybgpkit" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "typer" },
-    { name = "tzdata" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "hypothesis" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "types-pyyaml" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "duckdb", specifier = ">=1.0" },
-    { name = "matplotlib", specifier = ">=3.11.2" },
-    { name = "polars", specifier = ">=1.0" },
-    { name = "py-radix", specifier = ">=1.1.0" },
-    { name = "pyarrow", specifier = ">=16" },
-    { name = "pybgpkit", specifier = ">=0.8" },
-    { name = "pydantic", specifier = ">=2.7" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "requests", specifier = ">=2.32" },
-    { name = "typer", specifier = ">=0.12" },
-    { name = "tzdata", specifier = ">=2026.4" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hypothesis", specifier = ">=6.100" },
-    { name = "mypy", specifier = ">=1.11" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-cov", specifier = ">=5" },
-    { name = "ruff", specifier = ">=0.6" },
-    { name = "types-pyyaml" },
-    { name = "types-requests" },
 ]
 
 [[package]]

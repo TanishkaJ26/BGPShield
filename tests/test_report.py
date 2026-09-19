@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from hijax.config import Config, load_config
-from hijax.report import build_all
+from bgpshield.config import Config, load_config
+from bgpshield.report import build_all
 
 
 @pytest.fixture

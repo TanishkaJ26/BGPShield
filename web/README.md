@@ -1,4 +1,4 @@
-# Hijax dashboard (plan Section 11, Phase 7)
+# BGPShield dashboard (plan Section 11, Phase 7)
 
 A static Next.js site showing the measurements, built so it can be served from GitHub Pages
 with no server at all.
@@ -16,11 +16,11 @@ rows into the HTML, and fetches the full megabyte-sized table only when somebody
 The JSON is written by the Python side:
 
 ```bash
-uv run hijax adoption --export web/public/data/aspa_adoption.json
-uv run hijax export
+uv run bgpshield adoption --export web/public/data/aspa_adoption.json
+uv run bgpshield export
 ```
 
-`hijax export` writes `summary.json`, `networks.json`, `regional.json`, `path_coverage.json`,
+`bgpshield export` writes `summary.json`, `networks.json`, `regional.json`, `path_coverage.json`,
 `longitudinal.json` and `incidents.json`. The whole set is kept under 5 MB, because these
 files are committed and every clone of the repository pays for them.
 
@@ -32,13 +32,18 @@ measurement, not a footnote.
 
 ```bash
 npm install
+npm run check          # type check, lint, then build
 npm run build          # static export into out/
+npm run serve          # serve out/ locally with caching off
 ```
+
+`next lint` no longer exists in Next 16; `npm run lint` runs ESLint with the Next rule set
+from `eslint.config.mjs`. CI runs `check` with the GitHub Pages base path on every push.
 
 For GitHub Pages, a project site is served from `/<repo>`, so set the base path:
 
 ```bash
-NEXT_PUBLIC_BASE_PATH=/Hijax npm run build
+NEXT_PUBLIC_BASE_PATH=/BGPShield npm run build
 ```
 
 `out/` is then a complete static site. Both `out/` and `node_modules/` are gitignored.

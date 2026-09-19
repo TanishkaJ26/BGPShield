@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePrefersReducedMotion } from '../lib/motion';
 
 /**
  * The signature section: one BGP route, followed hop by hop as the reader scrolls.
@@ -32,7 +33,7 @@ const NODES = [
   { x: 1020, label: 'collector' },
 ];
 const PATH = 'M60,150 C180,40 260,260 380,150 S600,40 700,150 S920,260 1020,150';
-const PATH_LENGTH = 1130; // measured once at mount and corrected
+const PATH_LENGTH = 1130; // a close guess for the first paint; measured at mount
 
 export default function RouteStory({ shares }: { shares: Record<string, number> }) {
   const pct = (key: string, digits = 1) => `${((shares[key] ?? 0) * 100).toFixed(digits)}%`;
@@ -85,29 +86,27 @@ export default function RouteStory({ shares }: { shares: Record<string, number> 
   ];
 
   const section = useRef<HTMLElement>(null);
-  const drawn = useRef<SVGPathElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [reduced, setReduced] = useState(false);
+  const [scrolled, setScrolled] = useState(0);
+  const reduced = usePrefersReducedMotion();
+  // Under reduced motion the whole route is simply drawn; otherwise scroll drives it.
+  const progress = reduced ? 1 : scrolled;
+
+  // The real path length is measured once the element exists, through a callback ref, so
+  // the render never reads a ref and the first paint uses the close guess above.
+  const [length, setLength] = useState(PATH_LENGTH);
+  const measure = useCallback((node: SVGPathElement | null) => {
+    if (node) setLength(node.getTotalLength());
+  }, []);
 
   useEffect(() => {
     const el = section.current;
-    if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setReduced(true);
-      setProgress(1);
-      return;
-    }
-    if (drawn.current) {
-      const real = drawn.current.getTotalLength();
-      drawn.current.style.strokeDasharray = `${real}`;
-      drawn.current.dataset.len = String(real);
-    }
+    if (!el || reduced) return;
     let raf = 0;
     const update = () => {
       const rect = el.getBoundingClientRect();
       const total = rect.height - window.innerHeight;
       const p = Math.min(Math.max(-rect.top / Math.max(total, 1), 0), 1);
-      setProgress(p);
+      setScrolled(p);
       raf = 0;
     };
     const onScroll = () => {
@@ -121,14 +120,13 @@ export default function RouteStory({ shares }: { shares: Record<string, number> 
       window.removeEventListener('resize', onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [reduced]);
 
   // Which step is showing, and how far the line has drawn. The line reaches the last node a
   // little before the last step so the "end to end" moment lands on a finished route.
   const stepIndex = Math.min(Math.floor(progress * steps.length), steps.length - 1);
   const current = steps[stepIndex];
   const drawProgress = Math.min(progress / 0.72, 1);
-  const length = Number(drawn.current?.dataset.len ?? PATH_LENGTH);
 
   return (
     <section className="story" ref={section} aria-label="One route, hop by hop">
@@ -157,7 +155,7 @@ export default function RouteStory({ shares }: { shares: Record<string, number> 
             <path className="base" d={PATH} />
             <path
               className="drawn"
-              ref={drawn}
+              ref={measure}
               d={PATH}
               style={{
                 strokeDasharray: length,

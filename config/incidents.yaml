@@ -10,7 +10,7 @@
 # possibly see them:
 #
 #   route_leak     A network passed on a route it was not paid to carry. The path is
-#                  mis-shaped, so `hijax detect` and ASPA path verification apply.
+#                  mis-shaped, so `bgpshield detect` and ASPA path verification apply.
 #   origin_hijack  A network announced address space it does not hold. The path may be
 #                  perfectly well shaped, so only origin validation applies, not ASPA.
 #   rpki_misuse    The routing was fine; the signed records were the attack. Neither

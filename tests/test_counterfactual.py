@@ -14,7 +14,7 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from hijax.counterfactual import (
+from bgpshield.counterfactual import (
     Filtering,
     Outcome,
     Publication,
@@ -24,7 +24,7 @@ from hijax.counterfactual import (
     summarise,
     top_by_cone,
 )
-from hijax.ingest.meta import RelationshipLookup, parse_as_rel
+from bgpshield.ingest.meta import RelationshipLookup, parse_as_rel
 
 AS1, AS2, AS3, AS4, AS5, AS6, AS7 = 1, 2, 3, 4, 5, 6, 7
 

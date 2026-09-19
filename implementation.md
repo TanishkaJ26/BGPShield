@@ -1,7 +1,8 @@
-# Hijax: Measuring BGP Route-Security Adoption and Impact
+# BGPShield: Measuring BGP Route-Security Adoption and Impact
 
-> Renamed 2026-09-18. This document was originally titled "ASPA Watch"; the repository was
-> briefly called "Disha". The project, the Python package and the CLI are all `hijax`.
+> Renamed 2026-09-19 to "BGPShield", the name of the GitHub repository. This document was
+> originally titled "ASPA Watch"; the repository was briefly called "Disha", then "Hijax"
+> (2026-09-18). The project, the Python package and the CLI are all `bgpshield`.
 
 **Implementation plan for Claude Code**
 Owner: Tanishka Jangir · Started: September 2026 · Target: preprint + public dashboard by September 2027
@@ -134,7 +135,7 @@ Incident analysis uses BGP **update** files for a time window instead of daily R
 ## 7. Repository layout
 
 ```
-hijax/
+bgpshield/
 ├── README.md
 ├── CLAUDE.md                  # short rules from Section 0
 ├── pyproject.toml
@@ -146,7 +147,7 @@ hijax/
 │   ├── references.md          # pinned RFC/draft versions
 │   ├── methodology.md         # grows into the paper's method section
 │   └── decisions.md           # dated log of design decisions
-├── src/hijax/
+├── src/bgpshield/
 │   ├── cli.py
 │   ├── config.py
 │   ├── models.py              # pydantic/dataclass records
@@ -428,7 +429,7 @@ Time assumes about 6 h/week from the owner, with Claude Code doing most of the t
 ### Phase 1: RPKI ingestion + adoption baseline (weeks 3–5)
 
 - [ ] `ingest/rpki.py`: snapshot → `vrps` and `aspas` Parquet, with a format adapter per version.
-- [ ] `hijax ingest-rpki --date YYYY-MM-DD` and `--from/--to` for backfill.
+- [ ] `bgpshield ingest-rpki --date YYYY-MM-DD` and `--from/--to` for backfill.
 - [ ] GitHub Action `daily-rpki.yml`: fetch today's snapshot and write the ASPA counts JSON (small) to `web/public/data/`.
 - [ ] `analysis/adoption.py`: ASPA object count per day; per RIR/TA; per registration country.
 - [ ] Backfill weekly from the earliest ASPA date.
@@ -479,7 +480,7 @@ Time assumes about 6 h/week from the owner, with Claude Code doing most of the t
 - [ ] `analysis/regional.py`: India (registration country IN), the APNIC region, and global. Highlight the largest Indian transit ASes by cone and their ASPA/ROV status.
 - [ ] Figures for the paper (`matplotlib`, saved to `figures/`).
 
-**Accept when:** the figures regenerate from a single command (`hijax report`).
+**Accept when:** the figures regenerate from a single command (`bgpshield report`).
 
 ### Phase 7: Dashboard + write-up (weeks 37–48)
 
@@ -563,15 +564,15 @@ Collect for each: date/time window (UTC), leaker or hijacker ASN, affected prefi
 ## 17. CLI (target)
 
 ```
-hijax ingest-rpki   --date D | --from D1 --to D2 [--every 7d]
-hijax ingest-bgp    --date D --collectors rrc00,route-views2 [--updates --window START,END]
-hijax ingest-meta   --month YYYY-MM
-hijax validate      --date D
-hijax detect        --date D
-hijax incidents     [--id ID]
-hijax counterfactual --scenarios S0,S1,S2,S3 --filters F-all,F-top20
-hijax report        # figures + tables
-hijax export        # dashboard JSON
+bgpshield ingest-rpki   --date D | --from D1 --to D2 [--every 7d]
+bgpshield ingest-bgp    --date D --collectors rrc00,route-views2 [--updates --window START,END]
+bgpshield ingest-meta   --month YYYY-MM
+bgpshield validate      --date D
+bgpshield detect        --date D
+bgpshield incidents     [--id ID]
+bgpshield counterfactual --scenarios S0,S1,S2,S3 --filters F-all,F-top20
+bgpshield report        # figures + tables
+bgpshield export        # dashboard JSON
 ```
 
 ## 18. Learning map (owner reads while each phase is built)
@@ -592,5 +593,5 @@ Open-source contributions to aim for along the way: `pybgpkit` and `pybgpstream`
 
 1. Collectors: accept the diversity rule in Section 8, or target specific Indian IXPs if a collector exists there?
 2. Dashboard hosting: GitHub Pages or Vercel?
-3. ~~Project name: keep "ASPA Watch" or choose another?~~ **Answered 2026-09-18: "Hijax".**
+3. ~~Project name: keep "ASPA Watch" or choose another?~~ **Answered 2026-09-18: "BGPShield".**
 4. Paper target: arXiv preprint only, or also a workshop/short-paper venue (e.g. PAM or IMC poster track) if the results are strong?

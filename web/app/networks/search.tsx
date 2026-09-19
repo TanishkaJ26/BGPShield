@@ -126,7 +126,9 @@ export default function NetworkSearch({
               <td>
                 {row.publishes_aspa ? (
                   <span className="pill yes">
-                    {row.providers_listed ? `${row.providers_listed} providers` : 'yes'}
+                    {row.providers_listed
+                      ? `${row.providers_listed} provider${row.providers_listed === 1 ? '' : 's'}`
+                      : 'yes'}
                   </span>
                 ) : (
                   <span className="pill no">none</span>

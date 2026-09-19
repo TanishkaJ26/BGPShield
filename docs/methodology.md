@@ -37,8 +37,8 @@ One command ingests the published RPKI records for a day into two Parquet tables
 second reads those tables and reports. Nothing in the analysis touches the network.
 
 ```bash
-uv run hijax ingest-rpki --date 2026-09-16
-uv run hijax adoption --export web/public/data/aspa_adoption.json
+uv run bgpshield ingest-rpki --date 2026-09-16
+uv run bgpshield adoption --export web/public/data/aspa_adoption.json
 ```
 
 Source: the RIPE NCC RPKI archive, one Routinator JSON file per trust anchor per day
@@ -50,7 +50,7 @@ address in the User-Agent, and retry a dropped transfer without ever caching a p
 Plan Section 11 asks for agreement with a public reference within a stated tolerance. The
 tolerance was set at ±5 % per trust anchor in Phase 0. Snapshot date 2026-09-16:
 
-| Trust anchor | Hijax | rpki-client on rpkiviews, same day | Hurricane Electric report | Hijax vs HE |
+| Trust anchor | BGPShield | rpki-client on rpkiviews, same day | Hurricane Electric report | BGPShield vs HE |
 | --- | --- | --- | --- | --- |
 | ripe | 1,979 | 1,980 | 1,987 | −0.4 % |
 | arin | 630 | 630 | 632 | −0.3 % |
@@ -92,7 +92,7 @@ APNIC and both are registered in India. The ingester applies the Section 5.2 rul
 how often it fires, so the count is available as a data-quality signal for RQ2.
 
 ```bash
-uv run hijax ingest-rpki --date 2026-09-16 --force   # prints as0dropped=2
+uv run bgpshield ingest-rpki --date 2026-09-16 --force   # prints as0dropped=2
 ```
 
 ### Regional snapshot for RQ4, 2026-09-16
@@ -116,7 +116,7 @@ the United Kingdom (190), France (149) and Brazil (146).
 Weekly snapshots from the first ASPA record ever published to the present:
 
 ```bash
-uv run hijax ingest-rpki --from 2023-10-11 --to 2026-09-18 --every 7d
+uv run bgpshield ingest-rpki --from 2023-10-11 --to 2026-09-18 --every 7d
 ```
 
 | Quantity | Value |
@@ -155,8 +155,8 @@ reported as though it were.
 ### Commands
 
 ```bash
-uv run hijax ingest-bgp --date 2026-09-01 --jobs 3
-uv run hijax ingest-meta --month 2026-08
+uv run bgpshield ingest-bgp --date 2026-09-01 --jobs 3
+uv run bgpshield ingest-meta --month 2026-08
 ```
 
 The relationship month is deliberately the month *before* the snapshot, because plan
@@ -221,7 +221,7 @@ element is the collector's peer and the first is the origin, as plan Section 10.
 ### Relationship and metadata tables, month 2026-08
 
 ```bash
-uv run hijax ingest-meta --month 2026-08
+uv run bgpshield ingest-meta --month 2026-08
 ```
 
 | Table | Rows |
@@ -261,7 +261,7 @@ and is now possible from stored tables alone.
 ### Commands
 
 ```bash
-uv run hijax validate --date 2026-09-01 --collectors rrc06
+uv run bgpshield validate --date 2026-09-01 --collectors rrc06
 uv run python scripts/phase3_trace_invalid.py --date 2026-09-01 --collector rrc06
 ```
 
@@ -385,7 +385,7 @@ their inputs, which matters because collector tables repeat heavily: those route
 ### Command
 
 ```bash
-uv run hijax correctness --date 2026-09-01 --collectors rrc06
+uv run bgpshield correctness --date 2026-09-01 --collectors rrc06
 ```
 
 ### Why this matters
@@ -512,8 +512,8 @@ Reporting the Invalid share on its own would badly misattribute the cause.
 ### Commands
 
 ```bash
-uv run hijax detect --date 2026-09-01 --collectors rrc06
-uv run hijax counterfactual --date 2026-09-01 --limit 3000
+uv run bgpshield detect --date 2026-09-01 --collectors rrc06
+uv run bgpshield counterfactual --date 2026-09-01 --limit 3000
 uv run python scripts/phase5_precision_sample.py --date 2026-09-01 --samples 50
 ```
 
@@ -686,7 +686,7 @@ mis-origination; the disagreement is recorded rather than resolved by assumption
 ### Recall
 
 ```bash
-uv run hijax incidents --collectors route-views2
+uv run bgpshield incidents --collectors route-views2
 ```
 
 | | Count |
@@ -756,7 +756,7 @@ and the APNIC region compare with the world), and turns both into the figures th
 ### RQ4: India against its region and the world
 
 ```bash
-uv run hijax regional --date 2026-09-01 --country IN --top 12
+uv run bgpshield regional --date 2026-09-01 --country IN --top 12
 ```
 
 On the 2026-09-01 snapshot, with 86,699 networks seen originating routes:
@@ -874,13 +874,13 @@ It now reads each dump's `Content-Length` before ingesting. Measured on 2026-09-
 route-views2 dump runs 104 MB in 2023 down to 76 MB in 2026, so the whole sweep is about
 **1.17 GB** — comfortably inside the limit. D-048 records both the error and the measurement.
 
-`hijax longitudinal` prints the resulting series and `hijax report` draws it as
+`bgpshield longitudinal` prints the resulting series and `bgpshield report` draws it as
 `validation_over_time.png`. A date missing one of the three inputs still appears in the series
 with nulls, so a gap in the sweep is visible rather than silently skipped.
 
 ### Figures
 
-`uv run hijax report` regenerates all six figures into `figures/` from stored tables alone. It
+`uv run bgpshield report` regenerates all six figures into `figures/` from stored tables alone. It
 downloads nothing, so the same data always produces the same pictures, and a figure whose
 inputs are missing is named and skipped rather than drawn from whatever is to hand.
 
@@ -1025,7 +1025,7 @@ Each run ingested one day from an empty processed directory and the published se
 exactly one, which is what a broken merge would have failed to do: it would have left the
 series one day long forever, and only a multi-day run would have shown it.
 
-The streak itself is now checked rather than remembered. `hijax adoption` and the workflow both
+The streak itself is now checked rather than remembered. `bgpshield adoption` and the workflow both
 compute the longest run of consecutive days from the published JSON and print it. Against the
 real file today that is **154 snapshots, streak of 1** - the backfill is weekly, and seven-day
 spacing correctly counts as a streak of one, which is the case the unit tests pin down.
@@ -1088,7 +1088,7 @@ comparison that quietly rewrites what it compares against proves nothing.
 
 ### The dashboard
 
-`hijax export` writes the small JSON files the site reads, from tables already on disk. The
+`bgpshield export` writes the small JSON files the site reads, from tables already on disk. The
 whole payload is **1.14 MB** against the 5 MB the plan allows, which matters because these
 files are committed and every clone pays for them. The per-network table is the only large one
 and is capped: it keeps every ASPA publisher plus the 2,000 largest networks by customer cone,

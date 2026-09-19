@@ -12,8 +12,8 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from hijax.analysis.longitudinal import build_series, publisher_series
-from hijax.config import Config, load_config
+from bgpshield.analysis.longitudinal import build_series, publisher_series
+from bgpshield.config import Config, load_config
 
 
 @pytest.fixture

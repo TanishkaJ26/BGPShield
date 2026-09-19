@@ -9,7 +9,7 @@ param(
     [string]$Collectors = "",
     [int]$Jobs = 1
 )
-$exe = Join-Path $PSScriptRoot "..\.venv\Scripts\hijax.exe"
+$exe = Join-Path $PSScriptRoot "..\.venv\Scripts\bgpshield.exe"
 $argList = @("ingest-bgp", "--date", $Date, "--jobs", "$Jobs")
 if ($Collectors -ne "") { $argList += @("--collectors", $Collectors) }
 

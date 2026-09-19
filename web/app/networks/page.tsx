@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import Kinetic from '../../components/Kinetic';
 import Reveal from '../../components/Reveal';
 import { NetworksPayload, thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
 import NetworkSearch from './search';
+
+export const metadata: Metadata = {
+  title: 'Networks',
+  description: 'Origin-validation results and ASPA status for every network that publishes a record, plus the largest by customer cone.',
+};
 
 /** How many rows are baked into the HTML so the page means something without JavaScript. */
 const PRERENDERED = 100;
@@ -15,7 +21,7 @@ export default async function Networks() {
       <section className="band" style={{ paddingTop: 160 }}>
         <div className="shell">
           <p className="missing">
-            No network table has been exported yet. Run <code>hijax export</code> after
+            No network table has been exported yet. Run <code>bgpshield export</code> after
             validating a date.
           </p>
         </div>

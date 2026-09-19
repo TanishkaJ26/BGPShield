@@ -21,7 +21,7 @@ from pathlib import Path
 
 import requests
 
-UA = "hijax-phase0/0.1 (research; tanishkajangir26@gmail.com)"
+UA = "bgpshield-phase0/0.1 (research; tanishkajangir26@gmail.com)"
 BASE = "https://ftp.ripe.net/rpki"
 TAS = ["afrinic", "apnic", "arin", "lacnic", "ripencc"]
 CACHE = Path("data/raw/samples/ripe-rpki/monthly")

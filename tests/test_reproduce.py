@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from hijax.reproduce import EXACT_KEYS, compare, fixture_path, load_fixture, write_fixture
+from bgpshield.reproduce import EXACT_KEYS, compare, fixture_path, load_fixture, write_fixture
 
 BASELINE: dict[str, Any] = {
     "routes": 100,
@@ -84,3 +84,18 @@ def test_a_fixture_round_trips(tmp_path: Path) -> None:
 
 def test_a_missing_fixture_reads_as_none(tmp_path: Path) -> None:
     assert load_fixture(tmp_path) is None
+
+
+def test_the_pipeline_runner_can_find_a_way_to_invoke_the_cli() -> None:
+    """Either the console script beside the interpreter, or ``python -m bgpshield``."""
+    import sys
+
+    from bgpshield.reproduce import bgpshield_command
+
+    command = bgpshield_command()
+    assert command
+    if command[0] == sys.executable:
+        assert command[1:] == ["-m", "bgpshield"]
+    else:
+        assert Path(command[0]).exists()
+        assert Path(command[0]).stem == "bgpshield"

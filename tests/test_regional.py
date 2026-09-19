@@ -8,7 +8,7 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from hijax.analysis.regional import compare_regions, largest_transit, slice_region, summary
+from bgpshield.analysis.regional import compare_regions, largest_transit, slice_region, summary
 
 #: Four networks in India, two elsewhere in the APNIC region, two outside it.
 AS_META = pl.DataFrame(

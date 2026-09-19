@@ -24,7 +24,7 @@ export default async function Overview() {
     peak ? `${thousands(peak)} records at peak` : null,
     'six collectors · five cities · none in India',
     'passive data only · nothing is probed',
-    'every number reproducible with hijax reproduce',
+    'every number reproducible with bgpshield reproduce',
   ].filter(Boolean) as string[];
 
   return (
@@ -68,7 +68,7 @@ export default async function Overview() {
         <section className="band">
           <div className="shell">
             <p className="missing">
-              No summary has been exported yet. Run <code>hijax export</code> after ingesting and
+              No summary has been exported yet. Run <code>bgpshield export</code> after ingesting and
               validating a date.
             </p>
           </div>
@@ -202,7 +202,7 @@ export default async function Overview() {
   );
 }
 
-/** The growth curve, drawn as a single stroke. The paper figures come from `hijax report`. */
+/** The growth curve, drawn as a single stroke. The paper figures come from `bgpshield report`. */
 function Growth({ points }: { points: { snapshot_date: string; aspas: number }[] }) {
   const sorted = [...points].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
   const max = Math.max(...sorted.map((p) => p.aspas), 1);

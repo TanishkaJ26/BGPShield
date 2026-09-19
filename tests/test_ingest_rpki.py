@@ -13,7 +13,7 @@ from typing import Any
 import polars as pl
 import pytest
 
-from hijax.ingest.rpki import (
+from bgpshield.ingest.rpki import (
     _Parsed,
     aspas_frame,
     canonical_ta,
@@ -25,7 +25,7 @@ from hijax.ingest.rpki import (
     parse_snapshot,
     vrps_frame,
 )
-from hijax.models import Aspa, RecordFormatError, Vrp
+from bgpshield.models import Aspa, RecordFormatError, Vrp
 
 ROUTINATOR_SNAPSHOT: dict[str, Any] = {
     "metadata": {"generated": 1789533333, "generatedTime": "2026-09-16T04:35:33Z"},
@@ -245,8 +245,8 @@ def test_ingest_date_combines_every_trust_anchor(tmp_path: Path, monkeypatch: An
     """
     import json
 
-    from hijax import config as config_module
-    from hijax.ingest import rpki as rpki_module
+    from bgpshield import config as config_module
+    from bgpshield.ingest import rpki as rpki_module
 
     files: dict[str, Path] = {}
     for ta, customer in (("apnic", 64497), ("ripencc", 64500)):

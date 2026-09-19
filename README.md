@@ -1,6 +1,6 @@
-# Hijax
+# BGPShield
 
-Hijax measures BGP route-security adoption and impact: RPKI Route Origin Validation (ROV) and
+BGPShield (formerly Hijax) measures BGP route-security adoption and impact: RPKI Route Origin Validation (ROV) and
 Autonomous System Provider Authorization (ASPA). A reproducible, passive-measurement pipeline
 built for a master's application; full plan in [implementation.md](implementation.md).
 
@@ -12,7 +12,7 @@ it.
 Two acceptance criteria are still outstanding and are reported as misses rather than glossed:
 
 - **Phase 1** needs the daily job to have run seven days in a row. The streak is computed from
-  the published series by `hijax adoption` and by the workflow, but seven calendar days have to
+  the published series by `bgpshield adoption` and by the workflow, but seven calendar days have to
   elapse with the schedule enabled, which starts when the workflow is pushed.
 - **Phase 2** wants one day across all six collectors in under an hour. On verified-complete
   data it takes **64.2 minutes** (memory, at 1.80 GB against an 8 GB bar, passes). The binding
@@ -21,21 +21,28 @@ Two acceptance criteria are still outstanding and are reported as misses rather 
 ## Running it
 
 The environment is a `uv` virtual environment in `.venv/`. Activate it once per terminal and
-every command below is available as `hijax`:
+every command below is available as `bgpshield`:
 
 ```powershell
 # Windows PowerShell
 .\.venv\Scripts\Activate.ps1
-hijax --help
+bgpshield --help
 ```
 
 ```bash
 # Git Bash / macOS / Linux
 source .venv/Scripts/activate     # .venv/bin/activate on macOS and Linux
-hijax --help
+bgpshield --help
 ```
 
-Without activating, call it by path: `.venv\Scripts\hijax.exe --help`.
+Without activating, call it by path: `.venv\Scripts\bgpshield.exe --help`, or run
+`python -m bgpshield`.
+
+The command works from any directory. It finds `config/default.yaml` by looking upwards from
+where it was started, falling back to the checkout it was installed from; `--config` or the
+`BGPSHIELD_CONFIG` environment variable override that. Data paths in the config are resolved
+against the project root, so `data/` never ends up somewhere unexpected. Add `--verbose` to
+any command to see every download attempt and retry on stderr.
 
 Setting the environment up from scratch, or after changing dependencies, needs `uv`:
 
@@ -48,7 +55,7 @@ uv sync
 ## Reproducing the numbers
 
 ```bash
-hijax reproduce
+bgpshield reproduce
 ```
 
 One date, one collector: it ingests, validates and detects, then compares twelve counts and
@@ -71,12 +78,27 @@ It then runs daily after the RPKI job. Each run ingests one collector (rrc06, ~4
 **the live site describes one collector while the write-up describes six** - every page says
 so in its footer.
 
+The site is served under `/<repository name>` on GitHub Pages. The workflow reads the name
+from the repository, so nothing needs editing when it differs from this folder's name. If the
+site is put behind a custom domain, set a repository variable `SITE_URL` to the full address
+so the sitemap and link previews point at the right place.
+
+## Launch checklist
+
+1. `uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest`
+   is green (CI runs the same).
+2. `cd web && npm run check` is green: type check, lint and a production build.
+3. `bgpshield reproduce` matches the fixtures, so the published numbers are the real ones.
+4. Pages is enabled with the source set to GitHub Actions, and **Daily site** has been run
+   once by hand.
+5. Dependabot is on (`.github/dependabot.yml`), so the toolchains keep getting updates.
+
 ## The dashboard
 
 ```bash
-hijax export                                        # write the JSON the site reads
-cd web && npm install && npm run build              # static site into web/out/
-cd out && python -m http.server 8000                # then open http://localhost:8000
+bgpshield export                                        # write the JSON the site reads
+cd web && npm ci && npm run check                   # type check, lint, static site into web/out/
+npm run serve                                       # then open http://localhost:8000
 ```
 
 ## Headline findings
@@ -96,9 +118,13 @@ cd out && python -m http.server 8000                # then open http://localhost
 
 ```bash
 uv sync
-uv run hijax version
-uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+uv run bgpshield version
+uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest
+cd web && npm ci && npm run check
 ```
+
+Releases are recorded in [CHANGELOG.md](CHANGELOG.md); the version lives only in
+`pyproject.toml` and is read from the installed package at runtime.
 
 Raw data lives under `data/` and is never committed.
 
@@ -107,19 +133,19 @@ Raw data lives under `data/` and is never committed.
 Fetch the published RPKI records for one day into the `vrps` and `aspas` tables:
 
 ```bash
-uv run hijax ingest-rpki --date 2026-09-16
+uv run bgpshield ingest-rpki --date 2026-09-16
 ```
 
 Backfill weekly from the first ASPA record ever published:
 
 ```bash
-uv run hijax ingest-rpki --from 2023-10-11 --to 2026-09-18 --every 7d
+uv run bgpshield ingest-rpki --from 2023-10-11 --to 2026-09-18 --every 7d
 ```
 
 Report adoption over time and refresh the dashboard aggregate:
 
 ```bash
-uv run hijax adoption --export web/public/data/aspa_adoption.json
+uv run bgpshield adoption --export web/public/data/aspa_adoption.json
 ```
 
 Downloads are cached under `data/raw/`, carry a contact address in the User-Agent, and retry a
@@ -127,5 +153,5 @@ dropped transfer without ever caching a truncated file.
 
 ## Layout
 
-See plan Section 7. `src/hijax/` is the package, `scripts/` holds one-off Phase 0 probes,
+See plan Section 7. `src/bgpshield/` is the package, `scripts/` holds one-off Phase 0 probes,
 `docs/` the verified facts and decisions, `config/` the run configuration.

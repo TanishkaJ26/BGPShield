@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import Counter from '../../components/Counter';
 import Kinetic from '../../components/Kinetic';
 import Rail from '../../components/Rail';
 import Reveal from '../../components/Reveal';
 import { RegionalPayload, thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
+
+export const metadata: Metadata = {
+  title: 'Region',
+  description: 'ASPA adoption in India against the APNIC region and the world, and which of its largest transit networks publish.',
+};
 
 export default async function Region() {
   const payload = await readExport<RegionalPayload>('regional.json');
@@ -13,7 +19,7 @@ export default async function Region() {
       <section className="band" style={{ paddingTop: 160 }}>
         <div className="shell">
           <p className="missing">
-            No regional comparison has been exported yet. Run <code>hijax export</code> after
+            No regional comparison has been exported yet. Run <code>bgpshield export</code> after
             ingesting routes and topology metadata.
           </p>
         </div>

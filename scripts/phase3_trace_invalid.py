@@ -23,10 +23,10 @@ from pathlib import Path
 
 import polars as pl
 
-from hijax.config import load_config
-from hijax.ingest.meta import RelationshipLookup
-from hijax.validate.aspa import Authorized, procedure_for, ramp_bounds, verify_at_collector
-from hijax.validate.run import load_aspa_registry
+from bgpshield.config import load_config
+from bgpshield.ingest.meta import RelationshipLookup
+from bgpshield.validate.aspa import Authorized, procedure_for, ramp_bounds, verify_at_collector
+from bgpshield.validate.run import load_aspa_registry
 
 
 def main() -> None:

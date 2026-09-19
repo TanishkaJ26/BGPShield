@@ -39,12 +39,12 @@ def main() -> None:
     args = parser.parse_args()
 
     if not (SITE / "index.html").exists():
-        print(f"no build at {SITE}\nrun:  hijax export  then  cd web && npm run build")
+        print(f"no build at {SITE}\nrun:  bgpshield export  then  cd web && npm run build")
         sys.exit(1)
 
     handler = partial(NoCacheHandler, directory=str(SITE))
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    print(f"Hijax dashboard -> http://localhost:{args.port}")
+    print(f"BGPShield dashboard -> http://localhost:{args.port}")
     print("caching is disabled, so a plain reload always shows the current build")
     try:
         server.serve_forever()

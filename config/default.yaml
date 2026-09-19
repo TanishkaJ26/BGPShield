@@ -1,9 +1,9 @@
-# Hijax default configuration (plan Section 7). Values here were verified in Phase 0;
+# BGPShield default configuration (plan Section 7). Values here were verified in Phase 0;
 # see docs/data-sources.md. Paths are relative to the repo root.
 
 project:
-  name: hijax
-  user_agent: "hijax/0.1 (research; tanishkajangir26@gmail.com)"
+  name: bgpshield
+  user_agent: "bgpshield/{version} (research; tanishkajangir26@gmail.com)"
 
 paths:
   raw: data/raw

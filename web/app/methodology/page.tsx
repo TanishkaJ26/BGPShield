@@ -1,5 +1,11 @@
+import type { Metadata } from 'next';
 import Kinetic from '../../components/Kinetic';
 import Reveal from '../../components/Reveal';
+
+export const metadata: Metadata = {
+  title: 'Method',
+  description: 'Data sources, limits and the reproduction command behind every number on this site.',
+};
 
 const SOURCES: [string, string][] = [
   ['Routing tables', 'MRT dumps from RouteViews and RIPE RIS, for collectors in Amsterdam, Oregon, Singapore, Tokyo and Sydney.'],
@@ -79,7 +85,7 @@ export default function Methodology() {
           <Reveal delay={100}>
             <p className="eyebrow" style={{ marginTop: '2.6rem' }}>Reproducing it</p>
             <p>
-              Clone the repository, activate the environment, then run <code>hijax reproduce</code>.
+              Clone the repository, activate the environment, then run <code>bgpshield reproduce</code>.
               It ingests one RPKI snapshot, one month of topology data and one collector’s routing
               table for a single date, validates and detects over them, and compares twelve counts
               and five normalization drop rates against fixtures committed in the repository.

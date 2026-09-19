@@ -15,8 +15,8 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from hijax.config import Config, load_config
-from hijax.export import BUDGET_BYTES, build_all, export_networks, export_regional
+from bgpshield.config import Config, load_config
+from bgpshield.export import BUDGET_BYTES, build_all, export_networks, export_regional
 
 DAY = date(2026, 9, 1)
 

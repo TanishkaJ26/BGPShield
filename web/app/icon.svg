@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BGPShield">
+  <rect width="64" height="64" rx="14" fill="#06070b"/>
+  <path d="M10 42 C20 12 28 52 40 24 S52 30 54 20" fill="none" stroke="#8b7cff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="54" cy="20" r="6" fill="#62e9ff"/>
+</svg>

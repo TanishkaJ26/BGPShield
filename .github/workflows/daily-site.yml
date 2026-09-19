@@ -5,7 +5,7 @@ name: Daily site
 # The archives this project reads publish daily, so "live" here means daily, not real-time.
 # The RPKI side is cheap. The BGP side is the constraint: the six-collector study is 818 MB
 # and an hour, which is not a daily job for a hosted runner. One collector is - rrc06, the
-# smallest at about 43 MB, the same one `hijax reproduce` uses - so that is what the site
+# smallest at about 43 MB, the same one `bgpshield reproduce` uses - so that is what the site
 # refreshes from, and the site says so on every page rather than implying the study's scope.
 #
 # Runs after the daily RPKI job so the two never race to commit web/public/data. Everything
@@ -61,20 +61,36 @@ jobs:
       - name: Install (locked)
         run: uv sync --locked
 
+      # Inputs reach the shell through the environment, never by interpolation, so a
+      # crafted value cannot become a command. Both are checked before anything uses them.
       - name: Choose the snapshot
         id: pick
+        env:
+          REQUESTED_DATE: ${{ inputs.date }}
+          REQUESTED_COLLECTOR: ${{ inputs.collector }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
         run: |
-          if [ -n "${{ inputs.date }}" ]; then
-            day="${{ inputs.date }}"
+          if [ -n "$REQUESTED_DATE" ]; then
+            day="$REQUESTED_DATE"
           else
             day="$(date -u -d yesterday +%F)"
           fi
-          collector="${{ inputs.collector }}"
-          [ -z "$collector" ] && collector="rrc06"
+          if ! date -u -d "$day" +%F >/dev/null 2>&1 || [ "$(date -u -d "$day" +%F)" != "$day" ]; then
+            echo "date must be YYYY-MM-DD, got '$day'" >&2
+            exit 1
+          fi
+          collector="${REQUESTED_COLLECTOR:-rrc06}"
+          case "$collector" in
+            *[!A-Za-z0-9.-]*|"") echo "collector name '$collector' is not valid" >&2; exit 1 ;;
+          esac
           echo "day=$day" >> "$GITHUB_OUTPUT"
           echo "collector=$collector" >> "$GITHUB_OUTPUT"
           echo "month=$(date -u -d "$day -1 month" +%Y-%m)" >> "$GITHUB_OUTPUT"
           echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+          # Where Pages will serve the site, for the sitemap and social previews. A custom
+          # domain can override it with a repository variable named SITE_URL.
+          echo "url=https://$(echo "$OWNER" | tr '[:upper:]' '[:lower:]').github.io/$REPO" >> "$GITHUB_OUTPUT"
 
       # The delegated-stats files and the month's CAIDA data change slowly; keep them for a
       # week so the archives are not asked for the same files every day (plan Section 16).
@@ -89,23 +105,23 @@ jobs:
             inputs-${{ runner.os }}-
 
       - name: RPKI snapshot
-        run: uv run hijax ingest-rpki --date "${{ steps.pick.outputs.day }}"
+        run: uv run bgpshield ingest-rpki --date "${{ steps.pick.outputs.day }}"
 
       - name: Topology for the month before
-        run: uv run hijax ingest-meta --month "${{ steps.pick.outputs.month }}"
+        run: uv run bgpshield ingest-meta --month "${{ steps.pick.outputs.month }}"
 
       - name: One collector's routing table
-        run: uv run hijax ingest-bgp --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+        run: uv run bgpshield ingest-bgp --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
 
       - name: Validate and detect
         run: |
-          uv run hijax validate --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
-          uv run hijax detect --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+          uv run bgpshield validate --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
+          uv run bgpshield detect --date "${{ steps.pick.outputs.day }}" --collectors "${{ steps.pick.outputs.collector }}"
 
       - name: Export the dashboard data
         run: |
-          uv run hijax adoption --export web/public/data/aspa_adoption.json
-          uv run hijax export
+          uv run bgpshield adoption --export web/public/data/aspa_adoption.json
+          uv run bgpshield export
 
       - name: Commit the data if it changed
         run: |
@@ -126,6 +142,7 @@ jobs:
         working-directory: web
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || steps.pick.outputs.url }}
         run: |
           npm ci
           npm run build

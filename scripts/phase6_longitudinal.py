@@ -32,11 +32,11 @@ from pathlib import Path
 
 import requests
 
-from hijax.config import load_config
-from hijax.ingest.bgp import find_rib_url
+from bgpshield.config import load_config
+from bgpshield.ingest.bgp import find_rib_url
 
 REPO = Path(__file__).resolve().parent.parent
-HIJAX = REPO / ".venv" / "Scripts" / "hijax.exe"
+BGPSHIELD = REPO / ".venv" / "Scripts" / "bgpshield.exe"
 RAW = REPO / "data" / "raw"
 OUT = REPO / "data" / "processed" / "longitudinal"
 
@@ -97,7 +97,7 @@ def previous_month(day: date) -> str:
 def run(args: list[str], label: str) -> tuple[bool, str]:
     started = time.time()
     proc = subprocess.run(
-        [str(HIJAX), *args],
+        [str(BGPSHIELD), *args],
         cwd=REPO,
         capture_output=True,
         text=True,

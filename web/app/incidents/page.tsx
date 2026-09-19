@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import Counter from '../../components/Counter';
 import Kinetic from '../../components/Kinetic';
 import Reveal from '../../components/Reveal';
 import { thousands } from '../../lib/data';
 import { readExport } from '../../lib/load';
+
+export const metadata: Metadata = {
+  title: 'Incidents',
+  description: 'Seven documented routing incidents, and what a path-based leak detector could and could not judge about each.',
+};
 
 type IncidentRow = {
   id: string;
@@ -41,8 +47,8 @@ export default async function Incidents() {
       <section className="band" style={{ paddingTop: 160 }}>
         <div className="shell">
           <p className="missing">
-            No incident results have been exported yet. Run <code>hijax incidents</code> and then{' '}
-            <code>hijax export</code>.
+            No incident results have been exported yet. Run <code>bgpshield incidents</code> and then{' '}
+            <code>bgpshield export</code>.
           </p>
         </div>
       </section>

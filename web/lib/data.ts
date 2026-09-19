@@ -1,7 +1,7 @@
 /**
  * Shared types and formatting for the exported measurements.
  *
- * The JSON under public/data is written by `hijax export` from tables already on disk, and is
+ * The JSON under public/data is written by `bgpshield export` from tables already on disk, and is
  * read at build time by `lib/load.ts`. The only thing still fetched in the browser is the full
  * network table, and only when somebody searches, so `basePath` lives here for that one case.
  */

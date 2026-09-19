@@ -13,14 +13,14 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 
-from hijax.config import Config, load_config
-from hijax.ingest.bgp import (
+from bgpshield.config import Config, load_config
+from bgpshield.ingest.bgp import (
     ROUTES_SCHEMA,
     RibNotFoundError,
     ingest_rib,
     table_path,
 )
-from hijax.net import DownloadError
+from bgpshield.net import DownloadError
 
 SAMPLE = Path("data/raw/samples/mrt/rib.iix.cgk.20260901.0000.bz2")
 DAY = date(2026, 9, 1)
@@ -86,7 +86,7 @@ def test_an_interrupted_run_leaves_no_file_behind(
     """A run killed part way must not leave a short Parquet file that the next run would
     happily treat as a complete cached result. This actually happened during Phase 2 when
     one collector's failure tore down the others."""
-    from hijax.ingest import bgp as bgp_module
+    from bgpshield.ingest import bgp as bgp_module
 
     calls = {"n": 0}
     real = bgp_module._batch_to_table
@@ -118,14 +118,14 @@ def test_a_short_download_raises_instead_of_writing_a_small_table(
     partial dump was written out as a finished table with a stats file beside it. Ingesting
     six collectors at once produced 733,116 rows for rrc06 where a serial run produced
     6,751,923, and both reported success. Ingestion now downloads first through
-    ``hijax.net.download``, which checks the byte count and raises on a short read, so the
+    ``bgpshield.net.download``, which checks the byte count and raises on a short read, so the
     failure has to surface instead of becoming quiet bad data.
     """
 
     def short_read(*args: object, **kwargs: object) -> Path:
         raise DownloadError("short read: 1000 of 42900000 bytes")
 
-    monkeypatch.setattr("hijax.ingest.bgp.download", short_read)
+    monkeypatch.setattr("bgpshield.ingest.bgp.download", short_read)
 
     with pytest.raises(DownloadError):
         ingest_rib(cfg, "test", DAY, url="https://example.invalid/rib.bz2")
@@ -138,7 +138,7 @@ def test_a_missing_dump_is_reported_not_silently_empty(
     cfg: Config, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A 404 means the archive published nothing for that day, which is not zero routes."""
-    monkeypatch.setattr("hijax.ingest.bgp.download", lambda *a, **k: None)
+    monkeypatch.setattr("bgpshield.ingest.bgp.download", lambda *a, **k: None)
 
     with pytest.raises(RibNotFoundError):
         ingest_rib(cfg, "test", DAY, url="https://example.invalid/rib.bz2")
