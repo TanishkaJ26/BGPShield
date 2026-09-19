@@ -44,15 +44,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -95,7 +95,7 @@ jobs:
       # The delegated-stats files and the month's CAIDA data change slowly; keep them for a
       # week so the archives are not asked for the same files every day (plan Section 16).
       - name: Cache slow-moving inputs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             data/raw/delegated
@@ -147,7 +147,7 @@ jobs:
           npm ci
           npm run build
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: web/out
 
@@ -159,4 +159,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
