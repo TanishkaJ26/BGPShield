@@ -374,11 +374,33 @@ def export_summary(cfg: Config, destination: Path, *, sources: dict[str, Path]) 
     return _write(headline, destination)
 
 
+def _describes_another_date(path: Path, day: date | None) -> bool:
+    """Does an already-published file describe some date other than the one being exported?
+
+    Only files that carry a ``snapshot_date`` can be stale in this sense. The curated
+    incident results carry none, because they are a fixed set of historical events rather
+    than a view of one day, and they are deliberately not regenerated on the daily job
+    (D-063). Treating those as stale would print a warning on every single run and teach
+    everyone to ignore the one message that is supposed to mean something.
+    """
+    if day is None:
+        return False
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    recorded = payload.get("snapshot_date")
+    return isinstance(recorded, str) and recorded != str(day)
+
+
 def build_all(cfg: Config, *, destination: Path | None = None) -> ExportResult:
     """Write every dashboard file the stored data supports, and measure the size budget."""
     out = destination or cfg.paths.web_data
     result = ExportResult()
     written: dict[str, Path] = {}
+    day = export_date(cfg)
 
     jobs: list[tuple[str, str, Callable[[Config, Path], Path]]] = [
         ("networks", "networks.json", export_networks),
@@ -395,7 +417,7 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ExportResult:
             # A skip leaves whatever the last run wrote. `export_date` exists so that every
             # file describes one day, and a leftover from an earlier date defeats that while
             # looking entirely normal on the site, so say so rather than let it pass.
-            if (out / filename).exists():
+            if (out / filename).exists() and _describes_another_date(out / filename, day):
                 result.stale.append(out / filename)
             continue
         written[name] = path
@@ -413,11 +435,8 @@ def build_all(cfg: Config, *, destination: Path | None = None) -> ExportResult:
 
     # The adoption series is written by `bgpshield adoption --export` and counts against the same
     # budget, so include whatever is already published there.
-    # Stale files are published too, so they count against the budget.
-    total = sum(p.stat().st_size for p in result.written)
-    total += sum(p.stat().st_size for p in result.stale)
-    existing = out / "aspa_adoption.json"
-    if existing.exists():
-        total += existing.stat().st_size
-    result.total_bytes = total
+    # The budget is about what every clone of the repository pays for, so it counts every
+    # JSON file in the directory: the ones written now, the adoption series written by
+    # `bgpshield adoption --export`, and anything kept from an earlier run.
+    result.total_bytes = sum(f.stat().st_size for f in out.glob("*.json")) if out.exists() else 0
     return result

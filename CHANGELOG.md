@@ -19,6 +19,12 @@ committed fixtures, and the dashboard deploys daily to GitHub Pages.
   titles. `npm run check` runs the type check, lint and build together.
 - CI builds and lints the site as well as the Python package. Dependabot keeps the GitHub
   Actions, uv and npm toolchains current.
+- `bgpshield export` names any published file that a skipped exporter left behind describing
+  a different date, so the site cannot quietly serve one day's numbers beside another's. A
+  file carrying no `snapshot_date`, which is only the curated incident results, is never
+  flagged: those are a fixed set of historical events and are deliberately not regenerated
+  daily. The size budget now counts every JSON file in the published directory, which is what
+  a clone actually pays for.
 
 ### Changed
 
