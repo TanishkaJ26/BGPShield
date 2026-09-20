@@ -265,3 +265,50 @@ def test_the_budget_counts_every_published_file(tmp_path: Path) -> None:
     assert result.written == []
     assert result.stale == []
     assert result.total_bytes == expected
+
+
+# ------------------------------------------------------ serving the right build locally
+
+
+def _serve_site_module():  # type: ignore[no-untyped-def]
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("serve_site", REPO / "scripts" / "serve_site.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_a_pages_build_is_recognised_so_it_is_not_served_at_the_root(tmp_path: Path) -> None:
+    """A Pages build asks for /<repo>/_next/..., which 404s at the root of a local server.
+
+    The page then renders as raw unstyled markup and looks catastrophically broken when the
+    only thing wrong is the base path it was built for.
+    """
+    serve_site = _serve_site_module()
+    page = tmp_path / "index.html"
+    page.write_text(
+        '<link rel="stylesheet" href="/BGPShield/_next/static/chunks/abc.css"/>',
+        encoding="utf-8",
+    )
+    assert serve_site.base_path_of(page) == "/BGPShield"
+
+
+def test_a_local_build_is_served(tmp_path: Path) -> None:
+    serve_site = _serve_site_module()
+    page = tmp_path / "index.html"
+    page.write_text(
+        '<link rel="stylesheet" href="/_next/static/chunks/abc.css"/>', encoding="utf-8"
+    )
+    assert serve_site.base_path_of(page) is None
+
+
+def test_an_unreadable_or_odd_page_does_not_block_serving(tmp_path: Path) -> None:
+    """The guard must never refuse a build it simply could not parse."""
+    serve_site = _serve_site_module()
+    missing = tmp_path / "nope.html"
+    assert serve_site.base_path_of(missing) is None
+    plain = tmp_path / "plain.html"
+    plain.write_text("<html><body>no stylesheet here</body></html>", encoding="utf-8")
+    assert serve_site.base_path_of(plain) is None
