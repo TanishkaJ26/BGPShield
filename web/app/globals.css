@@ -310,9 +310,43 @@ nav a[aria-current='page'] { color: var(--ink); }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
 }
+
+/* The link to the source, at the closing end of the pill.
+   It borrows the section links' colour language rather than inventing one: the same muted
+   --ink-3, brightening to --ink over the same duration, on the same soft disc the nav
+   highlight uses. Sized to the snapshot chip so the right-hand end of the pill keeps one
+   height, and `flex: none` so it never absorbs the space the scrolling section list needs
+   on a narrow screen. */
+.nav-git {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 0.35rem;
+  border-radius: 50%;
+  color: var(--ink-3);
+  transition:
+    color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
+}
+.nav-git:hover,
+.nav-git:focus-visible {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+.nav-git svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
 @media (max-width: 720px) {
   .nav-chip { display: none; }
   .wordmark { padding-right: 0.6rem; }
+  /* The chip is gone here, so the icon is the pill's right edge; tuck it in a little. */
+  .nav-git { margin-left: 0.15rem; }
 }
 
 /* ------------------------------------------------------------------- curtain */
