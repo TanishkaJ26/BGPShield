@@ -4,13 +4,13 @@
   {
    "snapshot_date": "2026-09-19",
    "routes": 6788581,
-   "rov_not_found": 0.2803014356019321,
    "rov_valid": 0.7192106862980644,
    "rov_invalid": 0.0004878781000035206,
+   "rov_not_found": 0.2803014356019321,
    "aspa_rows": 6788581,
+   "aspa_invalid": 0.0034378318532252913,
    "aspa_valid": 0.17419148419971714,
    "aspa_unknown": 0.8223706839470576,
-   "aspa_invalid": 0.0034378318532252913,
    "leak_findings": 332662,
    "leak_leakers": 1076,
    "leak_corroborated": 63435
