@@ -24,9 +24,11 @@
    "candidates_found": 3137,
    "culprit_flagged": 2740,
    "note": "",
-   "title": "",
+   "description": "Google leaked routes learned from peers and customers to Verizon, which propagated them. Japanese networks were worst affected, NTT OCN most of all.",
    "culprit_asn": 15169,
-   "source": ""
+   "sources": [
+    "https://www.bgpmon.net/bgp-leak-causing-internet-outages-in-japan-and-beyond/"
+   ]
   },
   {
    "id": "2018-04-24-route53-hijack",
@@ -37,9 +39,12 @@
    "candidates_found": 0,
    "culprit_flagged": 0,
    "note": "kind is not route_leak",
-   "title": "",
+   "description": "Amazon Route 53 DNS prefixes were announced by eNET, redirecting MyEtherWallet users to an attacker-controlled DNS server.",
    "culprit_asn": 10297,
-   "source": ""
+   "sources": [
+    "https://www.internetsociety.org/blog/2018/04/amazons-route-53-bgp-hijack/",
+    "https://manrs.org/2018/04/a-deeper-dive-into-the-amazon-route-53-bgp-hijack/"
+   ]
   },
   {
    "id": "2019-06-24-verizon-dqe-leak",
@@ -50,9 +55,11 @@
    "candidates_found": 11407,
    "culprit_flagged": 11186,
    "note": "",
-   "title": "",
+   "description": "A BGP optimizer at DQE Communications generated more-specific routes, which were announced to its customer Allegheny Technologies and then to its other transit provider Verizon, which propagated them worldwide.",
    "culprit_asn": 33154,
-   "source": ""
+   "sources": [
+    "https://blog.cloudflare.com/how-verizon-and-a-bgp-optimizer-knocked-large-parts-of-the-internet-offline-today/"
+   ]
   },
   {
    "id": "2021-04-17-vodafone-idea",
@@ -63,9 +70,12 @@
    "candidates_found": 0,
    "culprit_flagged": 0,
    "note": "kind is not route_leak",
-   "title": "",
+   "description": "Vodafone Idea began originating tens of thousands of routes that do not belong to it, which propagated through its upstream Bharti Airtel.",
    "culprit_asn": 55410,
-   "source": ""
+   "sources": [
+    "https://blog.apnic.net/2021/04/26/a-major-bgp-route-leak-by-as55410/",
+    "https://manrs.org/2021/04/a-major-bgp-hijack-by-as55410-vodafone-idea-ltd/"
+   ]
   },
   {
    "id": "2024-01-03-orange-espana-rpki",
@@ -76,9 +86,12 @@
    "candidates_found": 0,
    "culprit_flagged": 0,
    "note": "kind is not route_leak",
-   "title": "",
+   "description": "An attacker used credentials found online to log into Orange Espa\u00f1a's RIPE NCC account and publish ROAs naming the wrong origin AS, which made much of the operator's own address space RPKI-invalid and therefore unroutable for networks that filter.",
    "culprit_asn": null,
-   "source": ""
+   "sources": [
+    "https://www.kentik.com/blog/digging-into-the-orange-espana-hack/",
+    "https://blog.benjojo.co.uk/post/rpki-signed-but-not-secure"
+   ]
   },
   {
    "id": "2025-05-01-cox-leak",
@@ -89,9 +102,11 @@
    "candidates_found": 41,
    "culprit_flagged": 0,
    "note": "no elevation in routes relayed through the culprit during the incident",
-   "title": "",
+   "description": "Cox Communications announced several thousand additional routes in two bursts an hour apart.",
    "culprit_asn": 22773,
-   "source": ""
+   "sources": [
+    "https://blog.apnic.net/2025/05/06/analysis-of-a-route-leak/"
+   ]
   },
   {
    "id": "2026-01-22-cloudflare-miami-leak",
@@ -102,9 +117,11 @@
    "candidates_found": 158,
    "culprit_flagged": 0,
    "note": "no elevation in routes relayed through the culprit during the incident",
-   "title": "",
+   "description": "A routing policy change at a Cloudflare router in Miami became too permissive and redistributed internally learned prefixes to all BGP neighbours at that location, including transit providers and peers.",
    "culprit_asn": 13335,
-   "source": ""
+   "sources": [
+    "https://blog.cloudflare.com/route-leak-incident-january-22-2026/"
+   ]
   }
  ],
  "notes": [
