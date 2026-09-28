@@ -2,18 +2,18 @@
  "dates": 1,
  "series": [
   {
-   "snapshot_date": "2026-09-26",
-   "routes": 6802110,
-   "rov_not_found": 0.27685277068439057,
-   "rov_valid": 0.7226306249090356,
-   "rov_invalid": 0.0005166044065738426,
-   "aspa_rows": 6802110,
-   "aspa_valid": 0.17202559205893467,
-   "aspa_unknown": 0.8245557628441763,
-   "aspa_invalid": 0.0034186450968890537,
-   "leak_findings": 337126,
-   "leak_leakers": 1069,
-   "leak_corroborated": 70080
+   "snapshot_date": "2026-09-27",
+   "routes": 6799545,
+   "rov_not_found": 0.2769375009651381,
+   "rov_valid": 0.7225579064481521,
+   "rov_invalid": 0.0005045925867098461,
+   "aspa_rows": 6799545,
+   "aspa_valid": 0.17204474711175527,
+   "aspa_invalid": 0.0030443213479725484,
+   "aspa_unknown": 0.8249109315402722,
+   "leak_findings": 334963,
+   "leak_leakers": 1072,
+   "leak_corroborated": 69938
   }
  ],
  "notes": [
