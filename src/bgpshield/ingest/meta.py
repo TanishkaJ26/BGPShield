@@ -531,18 +531,26 @@ def asrank_page(
     rather than address count. The plan uses it to pick the "top N" networks in the
     counterfactual scenarios (Section 10.6).
     """
-    response = session.post(
-        cfg.meta.asrank_graphql,
-        json={"query": _ASRANK_QUERY, "variables": {"first": page_size, "offset": offset}},
-        timeout=120,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if "errors" in payload:
-        raise DelegatedFormatError(f"AS Rank API returned errors: {payload['errors']}")
-    block = payload["data"]["asns"]
-    nodes = [edge["node"] for edge in block["edges"]]
-    return nodes, bool(block["pageInfo"]["hasNextPage"]), int(block["totalCount"])
+    for attempt in range(1, 5):
+        try:
+            response = session.post(
+                cfg.meta.asrank_graphql,
+                json={"query": _ASRANK_QUERY, "variables": {"first": page_size, "offset": offset}},
+                timeout=120,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if "errors" in payload:
+                raise DelegatedFormatError(f"AS Rank API returned errors: {payload['errors']}")
+            block = payload["data"]["asns"]
+            nodes = [edge["node"] for edge in block["edges"]]
+            return nodes, bool(block["pageInfo"]["hasNextPage"]), int(block["totalCount"])
+        except requests.RequestException:
+            if attempt == 4:
+                raise
+            time.sleep(0.5 * (2 ** (attempt - 1)))
+            
+    raise RuntimeError("Unreachable")
 
 
 def fetch_asrank(
