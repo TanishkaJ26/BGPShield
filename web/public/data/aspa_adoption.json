@@ -1,8 +1,8 @@
 {
  "generated_from": "bgpshield ingest-rpki (RIPE NCC RPKI archive, Routinator JSON)",
  "caveat_country": "Country is where the AS number is registered, not where the network operates.",
- "snapshots": 156,
- "latest_snapshot": "2026-09-19",
+ "snapshots": 169,
+ "latest_snapshot": "2026-10-02",
  "by_day": [
   {
    "snapshot_date": "2023-10-11",
@@ -783,6 +783,71 @@
    "snapshot_date": "2026-09-19",
    "aspas": 3146,
    "customer_asns": 3146
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "aspas": 3155,
+   "customer_asns": 3155
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "aspas": 3166,
+   "customer_asns": 3166
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "aspas": 3192,
+   "customer_asns": 3192
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "aspas": 3205,
+   "customer_asns": 3205
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "aspas": 3222,
+   "customer_asns": 3222
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "aspas": 3242,
+   "customer_asns": 3242
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "aspas": 3254,
+   "customer_asns": 3254
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "aspas": 3267,
+   "customer_asns": 3267
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "aspas": 3270,
+   "customer_asns": 3270
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "aspas": 3294,
+   "customer_asns": 3294
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "aspas": 3312,
+   "customer_asns": 3312
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "aspas": 3350,
+   "customer_asns": 3350
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "aspas": 3371,
+   "customer_asns": 3371
   }
  ],
  "by_trust_anchor": [
@@ -3800,133 +3865,393 @@
    "snapshot_date": "2026-09-19",
    "ta": "ripe",
    "aspas": 2008
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "ta": "apnic",
+   "aspas": 357
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "ta": "arin",
+   "aspas": 643
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "ta": "lacnic",
+   "aspas": 140
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "ta": "ripe",
+   "aspas": 2015
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "ta": "apnic",
+   "aspas": 363
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "ta": "arin",
+   "aspas": 643
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "ta": "lacnic",
+   "aspas": 142
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "ta": "ripe",
+   "aspas": 2018
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "ta": "apnic",
+   "aspas": 378
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "ta": "arin",
+   "aspas": 646
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "ta": "lacnic",
+   "aspas": 143
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "ta": "ripe",
+   "aspas": 2025
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "ta": "apnic",
+   "aspas": 387
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "ta": "arin",
+   "aspas": 649
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "ta": "lacnic",
+   "aspas": 142
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "ta": "ripe",
+   "aspas": 2027
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "ta": "apnic",
+   "aspas": 399
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "ta": "arin",
+   "aspas": 651
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "ta": "lacnic",
+   "aspas": 142
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "ta": "ripe",
+   "aspas": 2030
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "ta": "apnic",
+   "aspas": 407
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "ta": "arin",
+   "aspas": 655
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "ta": "lacnic",
+   "aspas": 142
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "ta": "ripe",
+   "aspas": 2038
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "ta": "apnic",
+   "aspas": 413
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "ta": "arin",
+   "aspas": 658
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "ta": "lacnic",
+   "aspas": 143
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "ta": "ripe",
+   "aspas": 2040
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "ta": "apnic",
+   "aspas": 421
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "ta": "arin",
+   "aspas": 659
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "ta": "lacnic",
+   "aspas": 142
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "ta": "ripe",
+   "aspas": 2045
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "ta": "apnic",
+   "aspas": 422
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "ta": "arin",
+   "aspas": 660
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "ta": "lacnic",
+   "aspas": 143
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "ta": "ripe",
+   "aspas": 2045
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "ta": "apnic",
+   "aspas": 433
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "ta": "arin",
+   "aspas": 664
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "ta": "lacnic",
+   "aspas": 144
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "ta": "ripe",
+   "aspas": 2053
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "ta": "apnic",
+   "aspas": 440
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "ta": "arin",
+   "aspas": 669
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "ta": "lacnic",
+   "aspas": 144
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "ta": "ripe",
+   "aspas": 2059
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "ta": "apnic",
+   "aspas": 459
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "ta": "arin",
+   "aspas": 675
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "ta": "lacnic",
+   "aspas": 154
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "ta": "ripe",
+   "aspas": 2062
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "ta": "apnic",
+   "aspas": 461
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "ta": "arin",
+   "aspas": 680
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "ta": "lacnic",
+   "aspas": 158
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "ta": "ripe",
+   "aspas": 2072
   }
  ],
  "latest_by_country": [
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "US",
-   "aspas": 603
+   "aspas": 636
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "DE",
-   "aspas": 305
+   "aspas": 312
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "GB",
-   "aspas": 192
+   "aspas": 195
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "FR",
+   "aspas": 153
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "country": "BR",
    "aspas": 151
   },
   {
-   "snapshot_date": "2026-09-19",
-   "country": "BR",
-   "aspas": 146
-  },
-  {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "NL",
-   "aspas": 114
+   "aspas": 115
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "CH",
-   "aspas": 88
+   "aspas": 89
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
+   "country": "AU",
+   "aspas": 87
+  },
+  {
+   "snapshot_date": "2026-10-02",
    "country": "CZ",
    "aspas": 83
   },
   {
-   "snapshot_date": "2026-09-19",
-   "country": "IT",
-   "aspas": 81
-  },
-  {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "CA",
-   "aspas": 80
+   "aspas": 83
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
+   "country": "IT",
+   "aspas": 82
+  },
+  {
+   "snapshot_date": "2026-10-02",
    "country": "RU",
-   "aspas": 75
+   "aspas": 79
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "IN",
-   "aspas": 72
+   "aspas": 76
   },
   {
-   "snapshot_date": "2026-09-19",
-   "country": "AU",
-   "aspas": 68
-  },
-  {
-   "snapshot_date": "2026-09-19",
-   "country": "PL",
-   "aspas": 59
-  },
-  {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "BD",
-   "aspas": 51
+   "aspas": 67
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
+   "country": "PL",
+   "aspas": 62
+  },
+  {
+   "snapshot_date": "2026-10-02",
    "country": "TR",
-   "aspas": 50
+   "aspas": 52
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "NO",
-   "aspas": 47
+   "aspas": 49
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "ES",
    "aspas": 46
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "DK",
    "aspas": 44
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "SE",
-   "aspas": 43
+   "aspas": 44
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
    "country": "CN",
+   "aspas": 39
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "country": "PH",
+   "aspas": 38
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "country": "BE",
    "aspas": 36
   },
   {
-   "snapshot_date": "2026-09-19",
+   "snapshot_date": "2026-10-02",
+   "country": "AT",
+   "aspas": 36
+  },
+  {
+   "snapshot_date": "2026-10-02",
    "country": "UA",
    "aspas": 35
-  },
-  {
-   "snapshot_date": "2026-09-19",
-   "country": "AT",
-   "aspas": 34
-  },
-  {
-   "snapshot_date": "2026-09-19",
-   "country": "GR",
-   "aspas": 30
-  },
-  {
-   "snapshot_date": "2026-09-19",
-   "country": "PK",
-   "aspas": 29
   }
  ],
  "provider_list_sizes": [
@@ -4864,6 +5189,84 @@
    "snapshot_date": "2026-09-19",
    "median_providers": 2.0,
    "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-20",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-21",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-22",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-23",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-24",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-25",
+   "median_providers": 2.0,
+   "max_providers": 227,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-26",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-27",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-28",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-29",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-09-30",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-10-01",
+   "median_providers": 2.0,
+   "max_providers": 228,
+   "as0_records": 63
+  },
+  {
+   "snapshot_date": "2026-10-02",
+   "median_providers": 2.0,
+   "max_providers": 228,
    "as0_records": 63
   }
  ]
