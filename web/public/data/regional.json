@@ -1,172 +1,172 @@
 {
- "snapshot_date": "2026-10-07",
- "aspa_snapshot_date": "2026-10-07",
+ "snapshot_date": "2026-10-08",
+ "aspa_snapshot_date": "2026-10-08",
  "metadata_month": "2026-09",
  "country": "IN",
  "regions": [
   {
    "region": "global",
-   "networks": 123422,
-   "routed_networks": 86398,
-   "aspa_publishers": 3419,
-   "publishers_that_route": 3017,
-   "share_of_routed": 0.0349197898099493
+   "networks": 123230,
+   "routed_networks": 86431,
+   "aspa_publishers": 3429,
+   "publishers_that_route": 3025,
+   "share_of_routed": 0.03499901655655957
   },
   {
    "region": "apnic region",
    "networks": 31319,
-   "routed_networks": 20085,
-   "aspa_publishers": 477,
+   "routed_networks": 20084,
+   "aspa_publishers": 478,
    "publishers_that_route": 442,
-   "share_of_routed": 0.022006472491909384
+   "share_of_routed": 0.022007568213503286
   },
   {
    "region": "registered IN",
    "networks": 6271,
-   "routed_networks": 2928,
+   "routed_networks": 2925,
    "aspa_publishers": 76,
    "publishers_that_route": 66,
-   "share_of_routed": 0.022540983606557378
+   "share_of_routed": 0.022564102564102566
   }
  ],
  "largest_transit": [
   {
    "asn": 9498,
-   "cone_size": 4018,
-   "rank": 20,
+   "cone_size": 3963,
+   "rank": 23,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 4755,
-   "cone_size": 2585,
-   "rank": 37,
+   "cone_size": 2626,
+   "rank": 36,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 9583,
-   "cone_size": 552,
-   "rank": 101,
+   "cone_size": 541,
+   "rank": 105,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 55410,
-   "cone_size": 387,
-   "rank": 143,
+   "cone_size": 441,
+   "rank": 137,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 18229,
    "cone_size": 385,
-   "rank": 145,
+   "rank": 149,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 45820,
-   "cone_size": 292,
-   "rank": 188,
+   "cone_size": 303,
+   "rank": 183,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 17762,
-   "cone_size": 232,
-   "rank": 232,
-   "publishes_aspa": false,
-   "rov_state_of_its_routes": "not seen"
-  },
-  {
-   "asn": 133296,
-   "cone_size": 216,
-   "rank": 243,
+   "cone_size": 229,
+   "rank": 234,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 9730,
-   "cone_size": 193,
-   "rank": 277,
+   "cone_size": 192,
+   "rank": 273,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 45117,
-   "cone_size": 156,
-   "rank": 330,
+   "cone_size": 160,
+   "rank": 322,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 55836,
+   "cone_size": 144,
+   "rank": 359,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 17439,
-   "cone_size": 111,
-   "rank": 429,
+   "cone_size": 116,
+   "rank": 426,
+   "publishes_aspa": false,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
+   "asn": 133296,
+   "cone_size": 108,
+   "rank": 441,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 17665,
-   "cone_size": 93,
-   "rank": 497,
+   "cone_size": 103,
+   "rank": 462,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
+   "asn": 9829,
+   "cone_size": 85,
+   "rank": 553,
+   "publishes_aspa": true,
+   "rov_state_of_its_routes": "not seen"
+  },
+  {
    "asn": 9885,
-   "cone_size": 82,
+   "cone_size": 83,
    "rank": 567,
    "publishes_aspa": true,
    "rov_state_of_its_routes": "not seen"
   },
   {
-   "asn": 9829,
-   "cone_size": 81,
-   "rank": 569,
-   "publishes_aspa": true,
-   "rov_state_of_its_routes": "not seen"
-  },
-  {
    "asn": 55824,
-   "cone_size": 80,
-   "rank": 579,
+   "cone_size": 81,
+   "rank": 578,
    "publishes_aspa": true,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 132770,
-   "cone_size": 79,
-   "rank": 587,
+   "cone_size": 76,
+   "rank": 605,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 136334,
-   "cone_size": 63,
-   "rank": 692,
+   "cone_size": 65,
+   "rank": 696,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 137085,
-   "cone_size": 62,
-   "rank": 702,
+   "cone_size": 59,
+   "rank": 739,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   },
   {
    "asn": 135718,
-   "cone_size": 52,
-   "rank": 801,
-   "publishes_aspa": false,
-   "rov_state_of_its_routes": "not seen"
-  },
-  {
-   "asn": 140641,
-   "cone_size": 44,
-   "rank": 902,
+   "cone_size": 55,
+   "rank": 775,
    "publishes_aspa": false,
    "rov_state_of_its_routes": "not seen"
   }
