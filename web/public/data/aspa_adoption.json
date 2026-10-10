@@ -4415,17 +4415,17 @@
   },
   {
    "snapshot_date": "2026-10-09",
-   "country": "BE",
-   "aspas": 36
-  },
-  {
-   "snapshot_date": "2026-10-09",
-   "country": "UA",
-   "aspas": 36
-  },
-  {
-   "snapshot_date": "2026-10-09",
    "country": "AT",
+   "aspas": 36
+  },
+  {
+   "snapshot_date": "2026-10-09",
+   "country": "PK",
+   "aspas": 36
+  },
+  {
+   "snapshot_date": "2026-10-09",
+   "country": "BE",
    "aspas": 36
   }
  ],
