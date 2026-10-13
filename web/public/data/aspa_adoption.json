@@ -4485,22 +4485,22 @@
   },
   {
    "snapshot_date": "2026-10-12",
-   "country": "CN",
-   "aspas": 37
-  },
-  {
-   "snapshot_date": "2026-10-12",
    "country": "PK",
    "aspas": 37
   },
   {
    "snapshot_date": "2026-10-12",
-   "country": "BE",
-   "aspas": 36
+   "country": "CN",
+   "aspas": 37
   },
   {
    "snapshot_date": "2026-10-12",
    "country": "AT",
+   "aspas": 36
+  },
+  {
+   "snapshot_date": "2026-10-12",
+   "country": "UA",
    "aspas": 36
   }
  ],
