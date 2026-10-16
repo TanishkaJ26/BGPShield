@@ -4495,7 +4495,7 @@
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "IT",
+   "country": "CZ",
    "aspas": 85
   },
   {
@@ -4505,17 +4505,17 @@
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "CZ",
+   "country": "IT",
    "aspas": 85
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "IN",
+   "country": "RU",
    "aspas": 79
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "RU",
+   "country": "IN",
    "aspas": 79
   },
   {
@@ -4560,11 +4560,6 @@
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "CN",
-   "aspas": 37
-  },
-  {
-   "snapshot_date": "2026-10-15",
    "country": "BE",
    "aspas": 37
   },
@@ -4575,7 +4570,12 @@
   },
   {
    "snapshot_date": "2026-10-15",
-   "country": "UA",
+   "country": "CN",
+   "aspas": 37
+  },
+  {
+   "snapshot_date": "2026-10-15",
+   "country": "AT",
    "aspas": 36
   }
  ],
