@@ -4520,17 +4520,17 @@
   },
   {
    "snapshot_date": "2026-10-16",
+   "country": "CA",
+   "aspas": 85
+  },
+  {
+   "snapshot_date": "2026-10-16",
    "country": "IT",
    "aspas": 85
   },
   {
    "snapshot_date": "2026-10-16",
    "country": "CZ",
-   "aspas": 85
-  },
-  {
-   "snapshot_date": "2026-10-16",
-   "country": "CA",
    "aspas": 85
   },
   {
@@ -4600,7 +4600,7 @@
   },
   {
    "snapshot_date": "2026-10-16",
-   "country": "??",
+   "country": "AT",
    "aspas": 36
   }
  ],
