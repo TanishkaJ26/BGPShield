@@ -1,13 +1,13 @@
 {
- "snapshot_date": "2026-10-17",
- "aspa_snapshot_date": "2026-10-17",
+ "snapshot_date": "2026-10-18",
+ "aspa_snapshot_date": "2026-10-18",
  "shares": {
-  "any": 0.37821201502617635,
-  "origin": 0.040256864572618074,
-  "neighbour": 0.1948776421939342,
-  "transit": 0.21876430226051483,
-  "adjacent_pair": 0.018109388666299474,
-  "all_hops": 2.6353493463015946e-06
+  "any": 0.37897321433801434,
+  "origin": 0.04044237814128781,
+  "neighbour": 0.19486440227228263,
+  "transit": 0.2193134651138543,
+  "adjacent_pair": 0.018155211336576885,
+  "all_hops": 2.635922824865773e-06
  },
  "notes": [
   "An ASPA record can only judge a hop when BOTH networks either side of it publish, so 'two publishers adjacent' is the first useful number here.",
