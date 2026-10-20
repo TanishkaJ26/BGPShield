@@ -4600,12 +4600,12 @@
   },
   {
    "snapshot_date": "2026-10-19",
-   "country": "CZ",
+   "country": "CA",
    "aspas": 85
   },
   {
    "snapshot_date": "2026-10-19",
-   "country": "CA",
+   "country": "CZ",
    "aspas": 85
   },
   {
@@ -4665,17 +4665,17 @@
   },
   {
    "snapshot_date": "2026-10-19",
-   "country": "BE",
-   "aspas": 38
-  },
-  {
-   "snapshot_date": "2026-10-19",
    "country": "CN",
    "aspas": 38
   },
   {
    "snapshot_date": "2026-10-19",
-   "country": "AT",
+   "country": "BE",
+   "aspas": 38
+  },
+  {
+   "snapshot_date": "2026-10-19",
+   "country": "??",
    "aspas": 37
   }
  ],
