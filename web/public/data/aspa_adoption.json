@@ -1,8 +1,8 @@
 {
  "generated_from": "bgpshield ingest-rpki (RIPE NCC RPKI archive, Routinator JSON)",
  "caveat_country": "Country is where the AS number is registered, not where the network operates.",
- "snapshots": 189,
- "latest_snapshot": "2026-10-22",
+ "snapshots": 190,
+ "latest_snapshot": "2026-10-23",
  "by_day": [
   {
    "snapshot_date": "2023-10-11",
@@ -948,6 +948,11 @@
    "snapshot_date": "2026-10-22",
    "aspas": 3736,
    "customer_asns": 3736
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "aspas": 3768,
+   "customer_asns": 3768
   }
  ],
  "by_trust_anchor": [
@@ -4625,132 +4630,152 @@
    "snapshot_date": "2026-10-22",
    "ta": "ripe",
    "aspas": 2186
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "ta": "apnic",
+   "aspas": 553
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "ta": "arin",
+   "aspas": 733
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "ta": "lacnic",
+   "aspas": 291
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "ta": "ripe",
+   "aspas": 2191
   }
  ],
  "latest_by_country": [
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "US",
-   "aspas": 676
+   "aspas": 678
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "DE",
    "aspas": 329
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "GB",
    "aspas": 204
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "BR",
-   "aspas": 168
+   "aspas": 172
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "FR",
-   "aspas": 156
+   "aspas": 157
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "NL",
    "aspas": 120
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "AU",
-   "aspas": 103
+   "aspas": 104
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "CH",
    "aspas": 92
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "IT",
+   "aspas": 90
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "country": "CA",
    "aspas": 88
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "CZ",
    "aspas": 87
   },
   {
-   "snapshot_date": "2026-10-22",
-   "country": "CA",
-   "aspas": 86
-  },
-  {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "BD",
-   "aspas": 84
+   "aspas": 85
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
+   "country": "IN",
+   "aspas": 81
+  },
+  {
+   "snapshot_date": "2026-10-23",
    "country": "RU",
    "aspas": 81
   },
   {
-   "snapshot_date": "2026-10-22",
-   "country": "IN",
-   "aspas": 80
-  },
-  {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "PL",
    "aspas": 68
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "TR",
    "aspas": 55
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "NO",
    "aspas": 53
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "SE",
    "aspas": 48
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "PH",
-   "aspas": 47
+   "aspas": 48
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "ES",
    "aspas": 46
   },
   {
-   "snapshot_date": "2026-10-22",
-   "country": "DK",
-   "aspas": 44
-  },
-  {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "??",
-   "aspas": 43
+   "aspas": 46
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
+   "country": "DK",
+   "aspas": 45
+  },
+  {
+   "snapshot_date": "2026-10-23",
    "country": "AR",
    "aspas": 42
   },
   {
-   "snapshot_date": "2026-10-22",
+   "snapshot_date": "2026-10-23",
    "country": "PK",
    "aspas": 40
   },
   {
-   "snapshot_date": "2026-10-22",
-   "country": "CN",
+   "snapshot_date": "2026-10-23",
+   "country": "BE",
    "aspas": 38
   }
  ],
@@ -5888,6 +5913,12 @@
    "median_providers": 2.0,
    "max_providers": 232,
    "as0_records": 68
+  },
+  {
+   "snapshot_date": "2026-10-23",
+   "median_providers": 2.0,
+   "max_providers": 232,
+   "as0_records": 69
   }
  ]
 }
