@@ -4765,12 +4765,12 @@
   },
   {
    "snapshot_date": "2026-10-25",
-   "country": "RU",
+   "country": "IN",
    "aspas": 81
   },
   {
    "snapshot_date": "2026-10-25",
-   "country": "IN",
+   "country": "RU",
    "aspas": 81
   },
   {
@@ -4810,12 +4810,12 @@
   },
   {
    "snapshot_date": "2026-10-25",
-   "country": "DK",
+   "country": "AR",
    "aspas": 45
   },
   {
    "snapshot_date": "2026-10-25",
-   "country": "AR",
+   "country": "DK",
    "aspas": 45
   },
   {
@@ -4825,7 +4825,7 @@
   },
   {
    "snapshot_date": "2026-10-25",
-   "country": "CN",
+   "country": "BE",
    "aspas": 38
   }
  ],
