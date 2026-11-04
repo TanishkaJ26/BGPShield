@@ -4975,12 +4975,12 @@
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "IT",
+   "country": "CA",
    "aspas": 91
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "CA",
+   "country": "IT",
    "aspas": 91
   },
   {
@@ -4990,12 +4990,12 @@
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "IN",
+   "country": "RU",
    "aspas": 83
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "RU",
+   "country": "IN",
    "aspas": 83
   },
   {
@@ -5020,22 +5020,22 @@
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "AR",
-   "aspas": 54
-  },
-  {
-   "snapshot_date": "2026-11-03",
    "country": "NO",
    "aspas": 54
   },
   {
    "snapshot_date": "2026-11-03",
-   "country": "DK",
-   "aspas": 49
+   "country": "AR",
+   "aspas": 54
   },
   {
    "snapshot_date": "2026-11-03",
    "country": "SE",
+   "aspas": 49
+  },
+  {
+   "snapshot_date": "2026-11-03",
+   "country": "DK",
    "aspas": 49
   },
   {
