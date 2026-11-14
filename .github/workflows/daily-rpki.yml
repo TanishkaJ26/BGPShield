@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -67,7 +67,7 @@ jobs:
         run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache RIR delegated-stats files
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/raw/delegated
           key: delegated-${{ runner.os }}-${{ steps.week.outputs.week }}
