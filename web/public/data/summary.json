@@ -5,26 +5,26 @@
   "path_coverage.json",
   "regional.json"
  ],
- "snapshot_date": "2026-11-13",
- "aspa_snapshot_date": "2026-11-13",
+ "snapshot_date": "2026-11-14",
+ "aspa_snapshot_date": "2026-11-14",
  "collectors": [
   "rrc06"
  ],
  "adoption": {
   "global": {
-   "routed_networks": 86764,
-   "publishers": 3602,
-   "share_of_routed": 0.041514914019639484
+   "routed_networks": 86754,
+   "publishers": 3612,
+   "share_of_routed": 0.04163496784009959
   },
   "apnic region": {
-   "routed_networks": 20086,
-   "publishers": 572,
-   "share_of_routed": 0.028477546549835708
+   "routed_networks": 20077,
+   "publishers": 575,
+   "share_of_routed": 0.02863973701250187
   },
   "registered IN": {
-   "routed_networks": 2909,
-   "publishers": 73,
-   "share_of_routed": 0.025094534204193882
+   "routed_networks": 2911,
+   "publishers": 76,
+   "share_of_routed": 0.02610786671246994
   }
  },
  "largest_transit_publishing": {
@@ -33,12 +33,12 @@
   "publishing": 3
  },
  "path_coverage": {
-  "any": 0.4064119749679131,
-  "origin": 0.04678503384921045,
-  "neighbour": 0.19487458438223793,
-  "transit": 0.24820902859839886,
-  "adjacent_pair": 0.021761380332982767,
-  "all_hops": 9.88743877966904e-06
+  "any": 0.4056656286965064,
+  "origin": 0.046785084672472735,
+  "neighbour": 0.19487665755688144,
+  "transit": 0.24733975043092157,
+  "adjacent_pair": 0.021706997166517274,
+  "all_hops": 9.880356151967434e-06
  },
  "caveats": [
   "Country means country of registration, not where a network operates.",
