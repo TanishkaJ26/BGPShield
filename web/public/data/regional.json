@@ -1,32 +1,32 @@
 {
- "snapshot_date": "2026-11-18",
- "aspa_snapshot_date": "2026-11-18",
+ "snapshot_date": "2026-11-19",
+ "aspa_snapshot_date": "2026-11-19",
  "metadata_month": "2026-10",
  "country": "IN",
  "regions": [
   {
    "region": "global",
    "networks": 123438,
-   "routed_networks": 86844,
-   "aspa_publishers": 4097,
-   "publishers_that_route": 3668,
-   "share_of_routed": 0.042236654230574364
+   "routed_networks": 86791,
+   "aspa_publishers": 4128,
+   "publishers_that_route": 3690,
+   "share_of_routed": 0.04251592907098662
   },
   {
    "region": "apnic region",
    "networks": 31319,
-   "routed_networks": 20102,
-   "aspa_publishers": 656,
-   "publishers_that_route": 605,
-   "share_of_routed": 0.030096507810168142
+   "routed_networks": 20091,
+   "aspa_publishers": 673,
+   "publishers_that_route": 617,
+   "share_of_routed": 0.030710268279329052
   },
   {
    "region": "registered IN",
    "networks": 6271,
-   "routed_networks": 2920,
-   "aspa_publishers": 91,
-   "publishers_that_route": 77,
-   "share_of_routed": 0.02636986301369863
+   "routed_networks": 2918,
+   "aspa_publishers": 97,
+   "publishers_that_route": 82,
+   "share_of_routed": 0.02810143934201508
   }
  ],
  "largest_transit": [
